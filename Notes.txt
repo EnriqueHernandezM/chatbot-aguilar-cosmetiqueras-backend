@@ -1,0 +1,123 @@
+    Cliente:
+    - Hola quiero mas informacion
+    Sistema:
+        Menu 
+        - Modelos y precios  
+            Se envia imagen
+            Si numero empieza con 81:
+            Envia imagen monterrey
+            Cualquier otro numero
+            Envia imagen general
+
+        - Dinamica de compra (Adelanto)
+                Si numero empieza con 81:
+                        Pedido sobre stock dispoible:
+                            Dependiendo de la disponibilidad de horarios de entrega se consolida un punto intermedio 
+                            para entrega Considera si la compra es de mas de 80 piezas se solicita un anticipo.
+                            Pregunta por entregas a domicilio 
+                            o Uber envios
+
+
+                        sobre pedido:
+                        
+                        Para comenzar a trabajar en tu pedido, requerimos un anticipo de $500.
+                            Una vez confirmado tu pedido con el anticipo, se agenda tu fecha de entrega o envío (según corresponda). 👩🏽‍💻
+                            Durante el proceso, te estaremos enviando evidencia del avance 📸 para que puedas ver cómo va quedando tu pedido.
+                            El tiempo de producción es de 4 a 10 días, dependiendo de la carga de pedidos ya agendados.
+                            El día de la entrega o envío se liquida el monto restante. 🌸
+            Si es de cuaquier otro numero:
+                        Sobre pedido:   
+                            Para comenzar a trabajar en tu pedido, requerimos un anticipo de $500.
+                            Una vez confirmado tu pedido con el anticipo, se agenda tu fecha de entrega o envío (según corresponda). 👩🏽‍💻
+                            Durante el proceso, te estaremos enviando evidencia del avance 📸 para que puedas ver cómo va quedando tu pedido.
+                            El tiempo de producción es de 4 a 10 días, dependiendo de la carga de pedidos ya agendados.
+                            El día de la entrega o envío se liquida el monto restante. 🌸
+
+        - Tiempos de entrega:   
+                si numero empieza 81
+                        Entrega inmediata
+                        y sobre pedido de 6 a 7 disponibilidad
+                Resto de numeros
+                        4 a 10 dias dpendiendo ubicacion y cantidad del pedido
+        
+        - Donde estamos ubicados
+            Si numero empieza con 81:
+            Hemos detectado que nos escribes de NL no contamos con una tienda fisica pero si con un distribuidor con stock disponible y entrega inmediata
+            Si es de cuaquier otro numero:
+            No contamos con una tienda fisica nuestra matriz se en cuentra en Acolman estado de mexio pero tranquilo hacemos envios a toda la republica
+            Y entregas programadas en el area metropolitana de cdmx 
+
+
+    
+
+
+
+
+
+
+
+
+    estructura 
+    src/
+│
+├── main.ts
+├── app.module.ts
+│
+├── common/
+│   ├── constants/
+│   ├── enums/
+│   ├── interfaces/
+│   └── utils/
+│
+├── config/
+│   ├── database.config.ts
+│   └── meta.config.ts
+│
+├── modules/
+│   │
+│   ├── webhook/
+│   │   ├── webhook.controller.ts
+│   │   ├── webhook.service.ts
+│   │   └── webhook.module.ts
+│   │
+│   ├── conversation/
+│   │   ├── schemas/
+│   │   │   ├── conversation.schema.ts
+│   │   │   └── message.schema.ts
+│   │   ├── conversation.service.ts
+│   │   ├── conversation.controller.ts
+│   │   └── conversation.module.ts
+│   │
+│   ├── lead/
+│   │   ├── schemas/
+│   │   │   └── lead.schema.ts
+│   │   ├── lead.service.ts
+│   │   └── lead.module.ts
+│   │
+│   ├── gpt/s
+│   │   ├── gpt.service.ts
+│   │   └── gpt.module.ts
+│   │
+│   └── human-handoff/
+│       ├── handoff.service.ts
+│       └── handoff.module.ts
+
+npx nest g module modules/users
+npx nest g controller modules/users
+npx nest g service modules/users
+
+
+npx nest g module modules/conversations
+npx nest g controller modules/conversations
+npx nest g service modules/conversations
+
+npx nest g module modules/messages
+npx nest g controller modules/messages
+npx nest g service modules/messages
+
+npx nest g module modules/leads
+npx nest g controller modules/leads
+npx nest g service modules/leads
+
+npx nest g module modules/flow
+npx nest g service modules/flow
