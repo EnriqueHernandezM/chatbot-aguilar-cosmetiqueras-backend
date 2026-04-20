@@ -164,7 +164,7 @@ export class ConversationFlowService {
   private showMenu(): FlowResponse {
     return {
       reply: `¡Hola! 😊 gracias por tu interés en nuestras cosmetiqueras.
-      Somos fabricantes y tenemos precio de mayoreo desde 25 piezas..
+    Somos fabricantes y tenemos precio de mayoreo desde 25 piezas..
 
 Para ayudarte más rápido, elige una opción:
 
@@ -270,7 +270,8 @@ cuadrada azul 10 piezas"
      📦 *Sobre stock disponible*
       • Entrega inmediata según disponibilidad  
       • Punto intermedio para entrega  
-      • En compras mayores a 80 piezas se solicita anticipo  
+      • En compras mayores a 80 piezas 
+         se solicita anticipo  
 
       🛠 *Sobre pedido*
       • Anticipo de $500 para iniciar producción  

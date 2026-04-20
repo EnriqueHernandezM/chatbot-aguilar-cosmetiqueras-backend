@@ -11,6 +11,7 @@ import { LeadsModule } from './modules/leads/leads.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { FlowModule } from './modules/flow/flow.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { QuickResponsesModule } from './modules/quick-responses/quick-responses.module';
 import { JwtAuthGuard } from './common/auth/guards/jwt-auth.guard';
 import { HealthController } from './health.controller';
 
@@ -31,6 +32,7 @@ import { ConfigModule } from '@nestjs/config';
     WebhookModule,
     FlowModule,
     NotificationsModule,
+    QuickResponsesModule,
   ],
   providers: [
     {
