@@ -12,6 +12,7 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 gpt-instructions.md
+ia-instructions.md
 
 # OS
 .DS_Store
