@@ -5,4 +5,5 @@ export interface CreateLeadPayload {
   name: string;
   quantity: number;
   product: string;
+  location?: string | null;
 }

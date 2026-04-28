@@ -21,6 +21,9 @@ export class Lead extends Document {
   @Prop()
   product: string;
 
+  @Prop({ default: null })
+  location: string | null;
+
   @Prop({
     type: String,
     enum: LeadStatus,

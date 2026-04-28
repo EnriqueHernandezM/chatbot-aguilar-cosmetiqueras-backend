@@ -16,6 +16,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
+  private readonly modelsImageReplyDelayMs = 1500;
 
   constructor(
     private readonly whatsappService: WhatsAppService,
@@ -137,7 +138,7 @@ Podrias escribir tu mensaje?`;
         const pageUrl = process.env.PAGE_URL?.trim();
 
         if (pageUrl) {
-          const pageMessage = `Puedes visitar nuestra pagina:\n${pageUrl}`;
+          const pageMessage = `Puedes visitar nuestra pagina y ver todos los colores:\n${pageUrl}`;
 
           await this.whatsappService.sendText(waId, pageMessage);
 
@@ -151,6 +152,7 @@ Podrias escribir tu mensaje?`;
 
         if (imageUrl) {
           await this.whatsappService.sendImage(waId, imageUrl);
+          await this.delay(this.modelsImageReplyDelayMs);
         }
       }
 
@@ -203,5 +205,9 @@ Podrias escribir tu mensaje?`;
     }
 
     return `[${type}] Nuevo mensaje recibido`;
+  }
+
+  private delay(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

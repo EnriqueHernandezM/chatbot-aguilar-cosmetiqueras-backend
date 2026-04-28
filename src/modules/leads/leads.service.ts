@@ -18,6 +18,7 @@ export class LeadsService {
       name: data.name,
       quantity: data.quantity,
       product: data.product,
+      location: data.location ?? null,
     });
   }
 

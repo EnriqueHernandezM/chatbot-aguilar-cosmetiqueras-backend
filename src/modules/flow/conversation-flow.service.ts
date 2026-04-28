@@ -4,12 +4,16 @@ import { ConversationState } from '../../common/enums/conversation-state.enum';
 import { parseQuoteMessage } from '../../common/utils/ai-parser.util';
 import { detectRegion, UserRegion } from '../../common/utils/region.util';
 import { Conversation } from '../conversations/schemas/conversation.schema';
+import { ConversationsService } from '../conversations/conversations.service';
 import { LeadsService } from '../leads/leads.service';
 import { FlowResponse } from './interfaces/flow-response.interface';
 
 @Injectable()
 export class ConversationFlowService {
-  constructor(private leadsService: LeadsService) {}
+  constructor(
+    private leadsService: LeadsService,
+    private conversationsService: ConversationsService,
+  ) {}
 
   async processMessage(
     conversation: Conversation,
@@ -40,7 +44,7 @@ export class ConversationFlowService {
         return null;
 
       default:
-        return this.showMenu();
+        return this.showMenu(region);
     }
   }
 
@@ -83,7 +87,7 @@ export class ConversationFlowService {
         };
 
       default:
-        return this.showMenu();
+        return this.showMenu(region);
     }
   }
 
@@ -93,22 +97,22 @@ export class ConversationFlowService {
     switch (input) {
       case '1':
         return {
+          reply: this.getHowToBuyMessage(),
+          additionalReplies: [this.postInfoMenu()],
+          nextState: ConversationState.SHOW_HOW_TO_BUY,
+        };
+
+      case '2':
+        return {
           reply:
             'Gracias por tu pregunta 😊\n\nUn asesor revisará tu mensaje y te responderá pronto.',
           nextState: ConversationState.OPEN_QUESTION,
         };
 
-      case '2':
+      case '3':
         return {
           reply: this.quoteInstructions(),
           nextState: ConversationState.CAPTURE_QUOTE_DATA,
-        };
-
-      case '3':
-        return {
-          reply: this.getHowToBuyMessage(),
-          additionalReplies: [this.postInfoMenu()],
-          nextState: ConversationState.SHOW_HOW_TO_BUY,
         };
 
       case '4':
@@ -141,7 +145,12 @@ export class ConversationFlowService {
       name: parsed.name || 'Cliente',
       quantity: parsed.quantity,
       product: parsed.product,
+      location: parsed.location || null,
     });
+
+    await this.conversationsService.markAsPotentialSale(
+      String(conversation._id),
+    );
 
     return {
       reply: `¡Perfecto! 🙌
@@ -161,10 +170,13 @@ export class ConversationFlowService {
     };
   }
 
-  private showMenu(): FlowResponse {
+  private showMenu(region: UserRegion = 'national'): FlowResponse {
+    const minimumPieces = region === 'monterrey' ? 25 : 30;
+
     return {
       reply: `¡Hola! 😊 gracias por tu interés en nuestras cosmetiqueras.
-    Somos fabricantes y tenemos precio de mayoreo desde 25 piezas..
+  Somos fabricantes y ditribuidores tenemos precio de 
+  mayoreo desde ${minimumPieces} piezas.
 
 Para ayudarte más rápido, elige una opción:
 
@@ -184,11 +196,11 @@ Para ayudarte más rápido, elige una opción:
   private postInfoMenu(): string {
     return `¿Cómo te gustaría continuar? 😊
 
-1️⃣ Tengo una duda
+1️⃣ Como comprar
 
-2️⃣ Generar cotización
+2️⃣ Tengo una duda
 
-3️⃣ Como comprar
+3️⃣ Generar cotización
 
 4️⃣ Volver al menú`;
   }
@@ -202,12 +214,14 @@ Para enviarte tu cotización compártenos en un solo mensaje:
 • Nombre
 • Modelo y colot
 • cantidad de piezas
+• de donde nos escribes
 
 Ejemplo:
 
 "Laura Mendez,
 cuadrada negro 50 piezas
-cuadrada azul 10 piezas"
+cuadrada azul 10 piezas
+Miguel Hidalgo Cdmx"
 `;
   }
 
@@ -224,19 +238,17 @@ cuadrada azul 10 piezas"
     }
 
     return `
-      📦 *Stock disponible*
-      • Entrega inmediata según disponibilidad  
-
       🛠 *Producción y envío*
       • Tiempo estimado: 4 a 10 días  
-      • Puede variar según cantidad, ubicación o personalización  
+      • Puede variar según cantidad, ubicación o 
+        carga de trabajo y personalización  
 
       `;
   }
   private getLocationMessage(region: UserRegion): string {
     if (region === 'monterrey') {
       return `
-    📍 Nuestra matriz se encuentra en Acolman, Estado de México.
+    📍 Nuestra matriz se encuentra en Tezoyuca, Estado de México.
 
     Sin embargo, contamos con un distribuidor en Nuevo León 😊  
     • Stock disponible  
@@ -247,7 +259,7 @@ cuadrada azul 10 piezas"
     }
 
     return `
-    📍 Nuestra matriz se encuentra en Acolman, Estado de México.
+    📍 Nuestra matriz se encuentra en Tezoyuca, Estado de México.
 
     • Realizamos envíos a toda la República 🇲🇽  
     • Producción y envío según disponibilidad  
@@ -286,12 +298,7 @@ cuadrada azul 10 piezas"
     }
 
     return `
-      📦 *Sobre stock disponible*
-      • Entrega inmediata según disponibilidad  
-      • Punto intermedio para entrega  
-      • En compras mayores a 80 piezas se solicita anticipo  
-
-      🛠 *Sobre pedido*
+      🛠 *Trabajamos sobre pedido*
       • Anticipo de $500 para iniciar producción  
       • Tiempo de producción: 4 a 10 días  
       • Envíos a toda la República 🇲🇽  
@@ -309,8 +316,8 @@ cuadrada azul 10 piezas"
 1️⃣ Elige modelo, color y cantidad
 2️⃣ Genera una cotizacion o habla con un    
    agente
-3️⃣ Se confirma disponibilidad
-4️⃣ Se realiza anticipo (Si es necesario)
+3️⃣ Se confirma disponibilidad de materiales
+4️⃣ Se realiza anticipo
 5️⃣ Se agenda entrega/envío`;
   }
 }

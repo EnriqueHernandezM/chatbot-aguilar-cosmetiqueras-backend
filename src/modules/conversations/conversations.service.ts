@@ -452,4 +452,16 @@ export class ConversationsService {
 
     return conversation;
   }
+
+  async markAsPotentialSale(conversationId: string | Types.ObjectId) {
+    return this.conversationModel.findByIdAndUpdate(
+      conversationId,
+      {
+        $set: {
+          isPotentialSale: true,
+        },
+      },
+      { new: true },
+    );
+  }
 }

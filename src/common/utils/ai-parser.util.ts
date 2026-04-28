@@ -37,10 +37,15 @@ export async function parseQuoteMessage(message: string) {
           {
           "name":string,
           "quantity":number,
-          "product":string
+          "product":string,
+          "location":string
           }
 
-          Si falta informacion devuelve null en el campo.
+          Reglas:
+          - "quantity" debe ser el total de piezas solicitado. Si hay varias lineas o varios productos, suma todas las cantidades.
+          - "product" debe conservar el detalle de los productos solicitados, incluyendo modelo, color y cantidad. Si hay varias lineas, puedes unirlas en un solo string.
+          - "location" debe ser la colonia, alcaldia, ciudad o lugar desde donde escribe el cliente si aparece en el mensaje.
+          - Si falta informacion devuelve null en el campo.
           `,
         },
         {

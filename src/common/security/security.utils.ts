@@ -60,7 +60,7 @@ export function getAllowedOrigins(): string[] {
   const rawOrigins =
     process.env.CORS_ORIGINS ||
     process.env.FRONTEND_URL ||
-    'http://localhost:8080,http://127.0.0.1:3000';
+    'http://localhost:8081,http://127.0.0.1:3000';
 
   return rawOrigins.split(',').map(normalizeOrigin).filter(Boolean);
 }
