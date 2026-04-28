@@ -168,4 +168,88 @@ describe('MessagesService', () => {
     );
     expect(result).toBe(createdMessage);
   });
+
+  it('accepts messageType as an alias of type for image messages', async () => {
+    const conversation = { _id: 'conversation-id', waId: '5215551234567' };
+    const createdMessage = {
+      _id: 'message-id',
+      conversationId: 'conversation-id',
+      from: MessageFrom.AGENT,
+      type: MessageType.IMAGE,
+      content: ['https://example.com/image-1.jpg'],
+      internalNote: false,
+    };
+
+    conversationModel.findById.mockResolvedValue(conversation);
+    messageModel.create.mockResolvedValue(createdMessage);
+    conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
+    whatsappService.sendImage.mockResolvedValue(undefined);
+
+    const result = await service.sendMessage({
+      conversationId: 'conversation-id',
+      from: MessageFrom.AGENT,
+      messageType: MessageType.IMAGE,
+      content: 'https://example.com/image-1.jpg',
+      internalNote: false,
+    });
+
+    expect(messageModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: MessageType.IMAGE,
+        content: ['https://example.com/image-1.jpg'],
+      }),
+    );
+    expect(whatsappService.sendImage).toHaveBeenCalledWith(
+      '5215551234567',
+      'https://example.com/image-1.jpg',
+    );
+    expect(result).toBe(createdMessage);
+  });
+
+  it('parses stringified image URL arrays before sending them to WhatsApp', async () => {
+    const conversation = { _id: 'conversation-id', waId: '5215551234567' };
+    const imageUrls = [
+      'https://example.com/image-1.jpg',
+      'https://example.com/image-2.jpg',
+    ];
+    const createdMessage = {
+      _id: 'message-id',
+      conversationId: 'conversation-id',
+      from: MessageFrom.AGENT,
+      type: MessageType.IMAGE,
+      content: imageUrls,
+      internalNote: false,
+    };
+
+    conversationModel.findById.mockResolvedValue(conversation);
+    messageModel.create.mockResolvedValue(createdMessage);
+    conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
+    whatsappService.sendImage.mockResolvedValue(undefined);
+
+    const result = await service.sendMessage({
+      conversationId: 'conversation-id',
+      from: MessageFrom.AGENT,
+      type: MessageType.IMAGE,
+      content: JSON.stringify(imageUrls),
+      internalNote: false,
+    });
+
+    expect(messageModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: MessageType.IMAGE,
+        content: imageUrls,
+      }),
+    );
+    expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
+      1,
+      '5215551234567',
+      'https://example.com/image-1.jpg',
+    );
+    expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
+      2,
+      '5215551234567',
+      'https://example.com/image-2.jpg',
+    );
+    expect(result).toBe(createdMessage);
+  });
 });

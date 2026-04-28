@@ -212,7 +212,7 @@ Perfecto 🙌
 Para enviarte tu cotización compártenos en un solo mensaje:
 
 • Nombre
-• Modelo y colot
+• Modelo y color
 • cantidad de piezas
 • de donde nos escribes
 

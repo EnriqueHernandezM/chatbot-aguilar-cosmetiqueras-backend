@@ -21,6 +21,10 @@ export class SendMessageDto {
   @IsEnum(MessageType)
   type?: MessageType;
 
+  @IsOptional()
+  @IsEnum(MessageType)
+  messageType?: MessageType;
+
   @IsDefined()
   content: string | string[];
 

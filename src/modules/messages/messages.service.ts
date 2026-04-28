@@ -33,8 +33,9 @@ export class MessagesService {
 
   async createMessage(payload: CreateMessagePayload) {
     await this.findConversationOrFail(payload.conversationId);
+    const messageType = this.resolveMessageType(payload);
     const normalizedContent = this.normalizeContent(
-      payload.type ?? MessageType.TEXT,
+      messageType,
       payload.content,
     );
 
@@ -42,7 +43,7 @@ export class MessagesService {
       conversationId: payload.conversationId,
       waMessageId: payload.waMessageId,
       from: payload.from,
-      type: payload.type ?? MessageType.TEXT,
+      type: messageType,
       content: normalizedContent,
       internalNote: payload.internalNote ?? false,
     });
@@ -118,6 +119,10 @@ export class MessagesService {
     return conversation;
   }
 
+  private resolveMessageType(payload: CreateMessagePayload) {
+    return payload.type ?? payload.messageType ?? MessageType.TEXT;
+  }
+
   private normalizeContent(type: MessageType, content: string | string[]) {
     if (type === MessageType.IMAGE) {
       return this.getImageContent(content);
@@ -137,6 +142,32 @@ export class MessagesService {
   }
 
   private getImageContent(content: string | string[]) {
+    if (typeof content === 'string') {
+      const trimmedContent = content.trim();
+
+      if (!trimmedContent) {
+        throw new BadRequestException(
+          'Image messages require a non-empty image URL',
+        );
+      }
+
+      if (trimmedContent.startsWith('[')) {
+        try {
+          const parsedContent = JSON.parse(trimmedContent);
+
+          if (Array.isArray(parsedContent)) {
+            return this.getImageContent(parsedContent);
+          }
+        } catch {
+          throw new BadRequestException(
+            'Image messages require valid image URLs',
+          );
+        }
+      }
+
+      return [trimmedContent];
+    }
+
     if (!Array.isArray(content) || content.length === 0) {
       throw new BadRequestException(
         'Image messages require a non-empty array of image URLs',

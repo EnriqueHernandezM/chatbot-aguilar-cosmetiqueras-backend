@@ -5,6 +5,7 @@ export interface CreateMessagePayload {
   conversationId: string;
   from: MessageFrom;
   type?: MessageType;
+  messageType?: MessageType;
   content: string | string[];
   waMessageId?: string;
   internalNote?: boolean;
