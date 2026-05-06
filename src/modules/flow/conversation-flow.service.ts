@@ -270,7 +270,7 @@ Miguel Hidalgo Cdmx"
 
   private getModelsMessage(region: UserRegion): string {
     if (region === 'monterrey') {
-      return `Aquí te compartimos los modelos disponibles para Monterrey 👇`;
+      return `Te comparto nuestros modelos más vendidos 👇`;
     }
 
     return `Aquí te compartimos nuestros modelos y precios disponibles 👇`;

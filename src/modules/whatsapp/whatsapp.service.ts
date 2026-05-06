@@ -6,6 +6,8 @@ import { notifyMetaSendFailure } from 'src/common/utils/telegram-alerts/telegram
 @Injectable()
 export class WhatsAppService {
   private apiUrl = `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_ID}/messages`;
+  private graphApiUrl =
+    process.env.WHATSAPP_GRAPH_API_URL || 'https://graph.facebook.com/v22.0';
 
   async sendText(to: string, text: string) {
     try {
@@ -58,5 +60,21 @@ export class WhatsAppService {
       await notifyMetaSendFailure('sendImage', to, error);
       throw error;
     }
+  }
+
+  async getMediaMetadata(mediaId: string) {
+    const response = await axios.get(`${this.graphApiUrl}/${mediaId}`, {
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+      },
+    });
+
+    return response.data as {
+      id: string;
+      url?: string;
+      mime_type?: string;
+      sha256?: string;
+      file_size?: number;
+    };
   }
 }

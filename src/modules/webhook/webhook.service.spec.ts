@@ -22,6 +22,7 @@ describe('WebhookService', () => {
   const whatsappService = {
     sendText: jest.fn(),
     sendImage: jest.fn(),
+    getMediaMetadata: jest.fn(),
   };
 
   const conversationsService = {
@@ -203,7 +204,7 @@ describe('WebhookService', () => {
     expect(whatsappService.sendText).toHaveBeenNthCalledWith(
       2,
       '5215551234567',
-      'Puedes visitar nuestra pagina:\nhttps://example.com',
+      'Aquí puedes ver todos los colores y modelos disponibles 👇\n          \nhttps://example.com',
     );
     expect(whatsappService.sendImage).toHaveBeenCalledWith(
       '5215551234567',
@@ -214,11 +215,78 @@ describe('WebhookService', () => {
         conversationId: 'conversation-1',
         from: MessageFrom.BOT,
         type: MessageType.TEXT,
-        content: 'Puedes visitar nuestra pagina:\nhttps://example.com',
+        content:
+          'Aquí puedes ver todos los colores y modelos disponibles 👇\n          \nhttps://example.com',
       }),
     );
 
     process.env.PAGE_URL = previousPageUrl;
+    process.env.MODELS_IMAGE_NATIONAL = previousModelsImage;
+  });
+
+  it('sends each configured models image when the env value is a string array', async () => {
+    const previousModelsImage = process.env.MODELS_IMAGE_NATIONAL;
+
+    process.env.MODELS_IMAGE_NATIONAL = JSON.stringify([
+      'https://example.com/models-1.jpg',
+      'https://example.com/models-2.jpg',
+      'https://example.com/models-3.jpg',
+    ]);
+
+    messagesService.messageExists.mockResolvedValue(false);
+    conversationsService.findOrCreateConversation.mockResolvedValue({
+      _id: 'conversation-1',
+      currentState: ConversationState.MENU,
+    });
+    conversationsService.acquireLock.mockResolvedValue({
+      _id: 'conversation-1',
+    });
+    flowService.processMessage.mockResolvedValue({
+      reply: 'Primer mensaje',
+      nextState: ConversationState.SHOW_MODELS,
+    });
+
+    const payload = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  {
+                    id: 'wamid-4',
+                    from: '5215551234567',
+                    type: 'text',
+                    text: {
+                      body: '1',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    await service.processWebhook(payload);
+
+    expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
+      1,
+      '5215551234567',
+      'https://example.com/models-1.jpg',
+    );
+    expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
+      2,
+      '5215551234567',
+      'https://example.com/models-2.jpg',
+    );
+    expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
+      3,
+      '5215551234567',
+      'https://example.com/models-3.jpg',
+    );
+
     process.env.MODELS_IMAGE_NATIONAL = previousModelsImage;
   });
 
@@ -274,5 +342,118 @@ describe('WebhookService', () => {
     });
     expect(conversationsService.updateState).not.toHaveBeenCalled();
     expect(whatsappService.sendText).not.toHaveBeenCalled();
+  });
+
+  it('stores a single incoming client image without sending the text-only error reply', async () => {
+    messagesService.messageExists.mockResolvedValue(false);
+    whatsappService.getMediaMetadata.mockResolvedValue({
+      id: 'meta-image-1',
+      url: 'https://lookaside.fbsbx.com/whatsapp-business/media/image-1',
+    });
+    conversationsService.findOrCreateConversation.mockResolvedValue({
+      _id: 'conversation-15',
+      currentState: ConversationState.MENU,
+      status: ConversationStatus.ACTIVE,
+    });
+    conversationsService.acquireLock.mockResolvedValue({
+      _id: 'conversation-15',
+    });
+
+    const payload = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  {
+                    id: 'wamid-image-1',
+                    from: '5215551234567',
+                    type: 'image',
+                    image: {
+                      id: 'meta-image-1',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    await service.processWebhook(payload);
+
+    expect(messagesService.createMessage).toHaveBeenCalledWith({
+      conversationId: 'conversation-15',
+      from: MessageFrom.USER,
+      type: MessageType.IMAGE,
+      content: 'https://lookaside.fbsbx.com/whatsapp-business/media/image-1',
+      waMessageId: 'wamid-image-1',
+    });
+    expect(flowService.processMessage).not.toHaveBeenCalled();
+    expect(whatsappService.sendText).not.toHaveBeenCalled();
+    expect(whatsappService.getMediaMetadata).toHaveBeenCalledWith(
+      'meta-image-1',
+    );
+  });
+
+  it('responds with an error when multiple client images arrive in the same webhook payload', async () => {
+    messagesService.messageExists.mockResolvedValue(false);
+    conversationsService.findOrCreateConversation.mockResolvedValue({
+      _id: 'conversation-16',
+      currentState: ConversationState.MENU,
+      status: ConversationStatus.ACTIVE,
+    });
+    conversationsService.acquireLock.mockResolvedValue({
+      _id: 'conversation-16',
+    });
+
+    const payload = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  {
+                    id: 'wamid-image-2',
+                    from: '5215551234567',
+                    type: 'image',
+                    image: {
+                      id: 'meta-image-2',
+                    },
+                  },
+                  {
+                    id: 'wamid-image-3',
+                    from: '5215551234567',
+                    type: 'image',
+                    image: {
+                      id: 'meta-image-3',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    await service.processWebhook(payload);
+
+    expect(messagesService.createMessage).toHaveBeenCalledTimes(1);
+    expect(messagesService.createMessage).toHaveBeenCalledWith({
+      conversationId: 'conversation-16',
+      from: MessageFrom.BOT,
+      type: MessageType.TEXT,
+      content:
+        'Por favor envia solo una imagen por mensaje para poder procesarla correctamente.',
+    });
+    expect(whatsappService.sendText).toHaveBeenCalledWith(
+      '5215551234567',
+      'Por favor envia solo una imagen por mensaje para poder procesarla correctamente.',
+    );
+    expect(flowService.processMessage).not.toHaveBeenCalled();
   });
 });

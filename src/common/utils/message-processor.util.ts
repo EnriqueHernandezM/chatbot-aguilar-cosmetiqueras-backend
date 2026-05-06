@@ -3,6 +3,8 @@ import { MessageType } from '../enums/message-type.enum';
 export interface ProcessedMessage {
   type: MessageType;
   text?: string;
+  content?: string;
+  imageId?: string;
 }
 
 export function processIncomingMessage(message: any): ProcessedMessage {
@@ -16,6 +18,12 @@ export function processIncomingMessage(message: any): ProcessedMessage {
   if (message.image) {
     return {
       type: MessageType.IMAGE,
+      text: message.image.caption?.trim(),
+      content:
+        message.image.id?.trim() ||
+        message.image.caption?.trim() ||
+        '[image]',
+      imageId: message.image.id?.trim(),
     };
   }
 

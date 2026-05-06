@@ -33,7 +33,15 @@ export class WebhookService {
       const messageData = this.extractMessage(payload);
       if (!messageData) return;
 
-      const { waId, text, type, waMessageId } = messageData;
+      const {
+        waId,
+        text,
+        type,
+        waMessageId,
+        content,
+        hasMultipleImages,
+        imageId,
+      } = messageData;
 
       // anti duplicado
       const exists = await this.messagesService.messageExists(waMessageId);
@@ -54,12 +62,33 @@ export class WebhookService {
 
       lockedConversationId = String(lockedConversation._id);
 
+      if (hasMultipleImages) {
+        const reply =
+          'Por favor envia solo una imagen por mensaje para poder procesarla correctamente.';
+
+        await this.messagesService.createMessage({
+          conversationId: String(conversation._id),
+          from: MessageFrom.BOT,
+          type: MessageType.TEXT,
+          content: reply,
+        });
+
+        await this.whatsappService.sendText(waId, reply);
+        return;
+      }
+
+      const resolvedContent = await this.resolveIncomingContent({
+        type,
+        content,
+        imageId,
+      });
+
       // guardar mensaje usuario
       await this.messagesService.createMessage({
         conversationId: String(conversation._id),
         from: MessageFrom.USER,
         type,
-        content: text || '',
+        content: resolvedContent ?? text ?? '',
         waMessageId,
       });
       await this.notificationsService.sendIncomingMessageNotification({
@@ -81,6 +110,10 @@ export class WebhookService {
           this.getIncomingMessagePreview(type, text),
         );
 
+        return;
+      }
+
+      if (type === MessageType.IMAGE) {
         return;
       }
 
@@ -131,14 +164,16 @@ Podrias escribir tu mensaje?`;
       // acciones especiales
       if (flowResponse.nextState === ConversationState.SHOW_MODELS) {
         const region = detectRegion(waId);
-        const imageUrl =
+        const imageEnvValue =
           region === 'monterrey'
             ? process.env.MODELS_IMAGE_MONTERREY
             : process.env.MODELS_IMAGE_NATIONAL;
+        const imageUrls = this.getImageUrlsFromEnv(imageEnvValue);
         const pageUrl = process.env.PAGE_URL?.trim();
 
         if (pageUrl) {
-          const pageMessage = `Puedes visitar nuestra pagina y ver todos los colores:\n${pageUrl}`;
+          const pageMessage = `Aquí puedes ver todos los colores y modelos disponibles 👇
+          \n${pageUrl}`;
 
           await this.whatsappService.sendText(waId, pageMessage);
 
@@ -150,7 +185,7 @@ Podrias escribir tu mensaje?`;
           });
         }
 
-        if (imageUrl) {
+        for (const imageUrl of imageUrls) {
           await this.whatsappService.sendImage(waId, imageUrl);
           await this.delay(this.modelsImageReplyDelayMs);
         }
@@ -179,8 +214,12 @@ Podrias escribir tu mensaje?`;
 
   private extractMessage(payload: any) {
     try {
-      const message = payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-      if (!message) return null;
+      const messages = payload.entry?.[0]?.changes?.[0]?.value?.messages;
+
+      if (!Array.isArray(messages) || messages.length === 0) return null;
+
+      const imageMessages = messages.filter((message) => !!message?.image);
+      const message = messages[0];
 
       const waMessageId = message.id;
       const waId = message.from;
@@ -192,6 +231,9 @@ Podrias escribir tu mensaje?`;
         waMessageId,
         type: processed.type,
         text: processed.text,
+        content: processed.content,
+        imageId: processed.imageId,
+        hasMultipleImages: imageMessages.length > 1,
       };
     } catch (error) {
       this.logger.error('Error parsing webhook', error);
@@ -204,7 +246,67 @@ Podrias escribir tu mensaje?`;
       return text?.trim() || '[empty text]';
     }
 
+    if (type === MessageType.IMAGE && text?.trim()) {
+      return text.trim();
+    }
+
     return `[${type}] Nuevo mensaje recibido`;
+  }
+
+  private async resolveIncomingContent({
+    type,
+    content,
+    imageId,
+  }: {
+    type: MessageType;
+    content?: string;
+    imageId?: string;
+  }) {
+    if (type !== MessageType.IMAGE || !imageId) {
+      return content ?? '';
+    }
+
+    try {
+      const mediaMetadata = await this.whatsappService.getMediaMetadata(
+        imageId,
+      );
+
+      if (mediaMetadata.url?.trim()) {
+        return mediaMetadata.url.trim();
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Could not resolve WhatsApp media URL for image ${imageId}`,
+      );
+    }
+
+    return content ?? imageId;
+  }
+
+  private getImageUrlsFromEnv(value?: string) {
+    const trimmedValue = value?.trim();
+
+    if (!trimmedValue) {
+      return [];
+    }
+
+    if (trimmedValue.startsWith('[')) {
+      try {
+        const parsedValue = JSON.parse(trimmedValue);
+
+        if (Array.isArray(parsedValue)) {
+          return parsedValue
+            .filter((imageUrl) => typeof imageUrl === 'string')
+            .map((imageUrl) => imageUrl.trim())
+            .filter(Boolean);
+        }
+      } catch (error) {
+        this.logger.warn(`Invalid models image env array: ${trimmedValue}`);
+        return [];
+      }
+    }
+
+    return [trimmedValue];
   }
 
   private delay(ms: number) {
