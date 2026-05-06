@@ -12,6 +12,7 @@ import { ConversationStatus } from 'src/common/enums/conversation-status.enum';
 import { detectRegion } from 'src/common/utils/region.util';
 import { notifyWaitingHumanNewMessage } from 'src/common/utils/telegram-alerts/telegram-alerts.util';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 
 @Injectable()
 export class WebhookService {
@@ -24,6 +25,7 @@ export class WebhookService {
     private readonly messagesService: MessagesService,
     private readonly flowService: ConversationFlowService,
     private readonly notificationsService: NotificationsService,
+    private readonly storageService: StorageService,
   ) {}
 
   async processWebhook(payload: any) {
@@ -171,23 +173,35 @@ Podrias escribir tu mensaje?`;
         const imageUrls = this.getImageUrlsFromEnv(imageEnvValue);
         const pageUrl = process.env.PAGE_URL?.trim();
 
+        // 1. Primero las imágenes
+        for (const imageUrl of imageUrls) {
+          await this.whatsappService.sendImage(waId, imageUrl);
+          await this.delay(this.modelsImageReplyDelayMs);
+        }
+
+        // 2. Luego el texto + URL de la página
         if (pageUrl) {
-          const pageMessage = `Aquí puedes ver todos los colores y modelos disponibles 👇
-          \n${pageUrl}`;
+          const pageIntroMessage =
+            'Aquí puedes ver todos los colores y modelos disponibles 👇';
 
-          await this.whatsappService.sendText(waId, pageMessage);
-
+          await this.whatsappService.sendText(waId, pageIntroMessage);
           await this.messagesService.createMessage({
             conversationId: String(conversation._id),
             from: MessageFrom.BOT,
             type: MessageType.TEXT,
-            content: pageMessage,
+            content: pageIntroMessage,
           });
-        }
 
-        for (const imageUrl of imageUrls) {
-          await this.whatsappService.sendImage(waId, imageUrl);
-          await this.delay(this.modelsImageReplyDelayMs);
+          // Delay antes de la URL para que WhatsApp genere el preview correctamente
+          await this.delay(1000);
+
+          await this.whatsappService.sendText(waId, pageUrl, true);
+          await this.messagesService.createMessage({
+            conversationId: String(conversation._id),
+            from: MessageFrom.BOT,
+            type: MessageType.TEXT,
+            content: pageUrl,
+          });
         }
       }
 
@@ -225,6 +239,14 @@ Podrias escribir tu mensaje?`;
       const waId = message.from;
 
       const processed = processIncomingMessage(message);
+      if (processed.isSupported === false) {
+        this.logger.warn(
+          `Skipping unsupported incoming WhatsApp message type: ${
+            message?.type ?? 'unknown'
+          }`,
+        );
+        return null;
+      }
 
       return {
         waId,
@@ -262,8 +284,12 @@ Podrias escribir tu mensaje?`;
     content?: string;
     imageId?: string;
   }) {
-    if (type !== MessageType.IMAGE || !imageId) {
-      return content ?? '';
+    if (type !== MessageType.IMAGE) {
+      return content;
+    }
+
+    if (!imageId) {
+      return content;
     }
 
     try {
@@ -272,6 +298,15 @@ Podrias escribir tu mensaje?`;
       );
 
       if (mediaMetadata.url?.trim()) {
+        const uploadedImageUrl = await this.uploadWhatsAppImageToStorage({
+          mediaUrl: mediaMetadata.url.trim(),
+          mimeType: mediaMetadata.mime_type,
+        });
+
+        if (uploadedImageUrl) {
+          return uploadedImageUrl;
+        }
+
         return mediaMetadata.url.trim();
       }
     } catch (error) {
@@ -281,6 +316,46 @@ Podrias escribir tu mensaje?`;
     }
 
     return content ?? imageId;
+  }
+
+  private async uploadWhatsAppImageToStorage({
+    mediaUrl,
+    mimeType,
+  }: {
+    mediaUrl: string;
+    mimeType?: string;
+  }) {
+    const downloadedMedia = await this.whatsappService.downloadMedia(mediaUrl);
+    const contentType = mimeType?.trim() || downloadedMedia.contentType;
+    const extension = this.getFileExtensionFromMimeType(contentType);
+    const filename = `whatsapp-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${extension}`;
+
+    const uploadedFile = await this.storageService.uploadBuffer({
+      buffer: downloadedMedia.buffer,
+      filename,
+      contentType,
+    });
+
+    return uploadedFile?.url || null;
+  }
+
+  private getFileExtensionFromMimeType(mimeType?: string) {
+    const normalizedMimeType = mimeType?.trim().toLowerCase();
+
+    switch (normalizedMimeType) {
+      case 'image/jpeg':
+        return 'jpg';
+      case 'image/png':
+        return 'png';
+      case 'image/webp':
+        return 'webp';
+      case 'image/gif':
+        return 'gif';
+      default:
+        return 'jpg';
+    }
   }
 
   private getImageUrlsFromEnv(value?: string) {

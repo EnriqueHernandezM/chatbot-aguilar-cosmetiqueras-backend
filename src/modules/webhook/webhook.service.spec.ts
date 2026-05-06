@@ -8,6 +8,7 @@ import { ConversationsService } from '../conversations/conversations.service';
 import { ConversationFlowService } from '../flow/conversation-flow.service';
 import { MessagesService } from '../messages/messages.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { StorageService } from '../storage/storage.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { WebhookService } from './webhook.service';
 import { notifyWaitingHumanNewMessage } from 'src/common/utils/telegram-alerts/telegram-alerts.util';
@@ -23,6 +24,7 @@ describe('WebhookService', () => {
     sendText: jest.fn(),
     sendImage: jest.fn(),
     getMediaMetadata: jest.fn(),
+    downloadMedia: jest.fn(),
   };
 
   const conversationsService = {
@@ -43,6 +45,10 @@ describe('WebhookService', () => {
 
   const notificationsService = {
     sendIncomingMessageNotification: jest.fn(),
+  };
+
+  const storageService = {
+    uploadBuffer: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -68,6 +74,10 @@ describe('WebhookService', () => {
         {
           provide: NotificationsService,
           useValue: notificationsService,
+        },
+        {
+          provide: StorageService,
+          useValue: storageService,
         },
       ],
     }).compile();
@@ -150,7 +160,7 @@ describe('WebhookService', () => {
     );
   });
 
-  it('sends the page url text before the models image when PAGE_URL exists', async () => {
+  it('sends the page intro and url as separate messages before the models image when PAGE_URL exists', async () => {
     const previousPageUrl = process.env.PAGE_URL;
     const previousModelsImage = process.env.MODELS_IMAGE_NATIONAL;
 
@@ -204,7 +214,13 @@ describe('WebhookService', () => {
     expect(whatsappService.sendText).toHaveBeenNthCalledWith(
       2,
       '5215551234567',
-      'Aquí puedes ver todos los colores y modelos disponibles 👇\n          \nhttps://example.com',
+      'Aquí puedes ver todos los colores y modelos disponibles 👇',
+    );
+    expect(whatsappService.sendText).toHaveBeenNthCalledWith(
+      3,
+      '5215551234567',
+      'https://example.com',
+      true,
     );
     expect(whatsappService.sendImage).toHaveBeenCalledWith(
       '5215551234567',
@@ -215,8 +231,15 @@ describe('WebhookService', () => {
         conversationId: 'conversation-1',
         from: MessageFrom.BOT,
         type: MessageType.TEXT,
-        content:
-          'Aquí puedes ver todos los colores y modelos disponibles 👇\n          \nhttps://example.com',
+        content: 'Aquí puedes ver todos los colores y modelos disponibles 👇',
+      }),
+    );
+    expect(messagesService.createMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 'conversation-1',
+        from: MessageFrom.BOT,
+        type: MessageType.TEXT,
+        content: 'https://example.com',
       }),
     );
 
@@ -224,7 +247,9 @@ describe('WebhookService', () => {
     process.env.MODELS_IMAGE_NATIONAL = previousModelsImage;
   });
 
-  it('sends each configured models image when the env value is a string array', async () => {
+  it(
+    'sends each configured models image when the env value is a string array',
+    async () => {
     const previousModelsImage = process.env.MODELS_IMAGE_NATIONAL;
 
     process.env.MODELS_IMAGE_NATIONAL = JSON.stringify([
@@ -288,7 +313,9 @@ describe('WebhookService', () => {
     );
 
     process.env.MODELS_IMAGE_NATIONAL = previousModelsImage;
-  });
+    },
+    10000,
+  );
 
   it('alerts agents when a new message arrives in a waiting_human conversation', async () => {
     messagesService.messageExists.mockResolvedValue(false);
@@ -349,6 +376,14 @@ describe('WebhookService', () => {
     whatsappService.getMediaMetadata.mockResolvedValue({
       id: 'meta-image-1',
       url: 'https://lookaside.fbsbx.com/whatsapp-business/media/image-1',
+      mime_type: 'image/jpeg',
+    });
+    whatsappService.downloadMedia.mockResolvedValue({
+      buffer: Buffer.from('image-binary'),
+      contentType: 'image/jpeg',
+    });
+    storageService.uploadBuffer.mockResolvedValue({
+      url: 'https://storage.example.com/whatsapp/image-1.jpg',
     });
     conversationsService.findOrCreateConversation.mockResolvedValue({
       _id: 'conversation-15',
@@ -388,13 +423,22 @@ describe('WebhookService', () => {
       conversationId: 'conversation-15',
       from: MessageFrom.USER,
       type: MessageType.IMAGE,
-      content: 'https://lookaside.fbsbx.com/whatsapp-business/media/image-1',
+      content: 'https://storage.example.com/whatsapp/image-1.jpg',
       waMessageId: 'wamid-image-1',
     });
     expect(flowService.processMessage).not.toHaveBeenCalled();
     expect(whatsappService.sendText).not.toHaveBeenCalled();
     expect(whatsappService.getMediaMetadata).toHaveBeenCalledWith(
       'meta-image-1',
+    );
+    expect(whatsappService.downloadMedia).toHaveBeenCalledWith(
+      'https://lookaside.fbsbx.com/whatsapp-business/media/image-1',
+    );
+    expect(storageService.uploadBuffer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        buffer: Buffer.from('image-binary'),
+        contentType: 'image/jpeg',
+      }),
     );
   });
 
@@ -455,5 +499,95 @@ describe('WebhookService', () => {
       'Por favor envia solo una imagen por mensaje para poder procesarla correctamente.',
     );
     expect(flowService.processMessage).not.toHaveBeenCalled();
+  });
+
+  it('ignores unsupported incoming payloads without trying to persist an empty text message', async () => {
+    const payload = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  {
+                    id: 'wamid-location-1',
+                    from: '5215551234567',
+                    type: 'location',
+                    location: {
+                      latitude: 19.4326,
+                      longitude: -99.1332,
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    await service.processWebhook(payload);
+
+    expect(messagesService.messageExists).not.toHaveBeenCalled();
+    expect(messagesService.createMessage).not.toHaveBeenCalled();
+    expect(whatsappService.sendText).not.toHaveBeenCalled();
+  });
+
+  it('treats interactive button replies as text messages', async () => {
+    messagesService.messageExists.mockResolvedValue(false);
+    conversationsService.findOrCreateConversation.mockResolvedValue({
+      _id: 'conversation-17',
+      currentState: ConversationState.MENU,
+      status: ConversationStatus.ACTIVE,
+    });
+    conversationsService.acquireLock.mockResolvedValue({
+      _id: 'conversation-17',
+    });
+    flowService.processMessage.mockResolvedValue({
+      reply: 'Respuesta del bot',
+    });
+
+    const payload = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                messages: [
+                  {
+                    id: 'wamid-interactive-1',
+                    from: '5215551234567',
+                    type: 'interactive',
+                    interactive: {
+                      button_reply: {
+                        id: 'option-1',
+                        title: 'Ver modelos',
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    await service.processWebhook(payload);
+
+    expect(messagesService.createMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: 'conversation-17',
+        from: MessageFrom.USER,
+        type: MessageType.TEXT,
+        content: 'Ver modelos',
+        waMessageId: 'wamid-interactive-1',
+      }),
+    );
+    expect(flowService.processMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: 'conversation-17' }),
+      'Ver modelos',
+      '5215551234567',
+    );
   });
 });

@@ -162,6 +162,7 @@ export class ConversationFlowService {
     };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private handleOpenQuestion(message: string): FlowResponse {
     return {
       reply:
@@ -174,11 +175,14 @@ export class ConversationFlowService {
     const minimumPieces = region === 'monterrey' ? 25 : 30;
 
     return {
-      reply: `¡Hola! 😊 gracias por tu interés en nuestras cosmetiqueras.
-  Somos fabricantes y ditribuidores tenemos precio de 
-  mayoreo desde ${minimumPieces} piezas.
+      reply: `¡Hola! 😊
+
+Gracias por tu interés en nuestras cosmetiqueras.
+
+Somos fabricantes y distribuidores, con precios de mayoreo desde ${minimumPieces} piezas.
 
 Para ayudarte más rápido, elige una opción:
+
 
 1️⃣ Modelos y precios
 

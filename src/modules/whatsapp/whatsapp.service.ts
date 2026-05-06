@@ -9,7 +9,7 @@ export class WhatsAppService {
   private graphApiUrl =
     process.env.WHATSAPP_GRAPH_API_URL || 'https://graph.facebook.com/v22.0';
 
-  async sendText(to: string, text: string) {
+  async sendText(to: string, text: string, previewUrl = false) {
     try {
       console.log('TO:', to);
       await axios.post(
@@ -20,6 +20,7 @@ export class WhatsAppService {
           type: 'text',
           text: {
             body: text,
+            preview_url: previewUrl, // 👈
           },
         },
         {
@@ -36,7 +37,6 @@ export class WhatsAppService {
       throw error;
     }
   }
-
   async sendImage(to: string, imageUrl: string, caption?: string) {
     try {
       await axios.post(
@@ -75,6 +75,21 @@ export class WhatsAppService {
       mime_type?: string;
       sha256?: string;
       file_size?: number;
+    };
+  }
+
+  async downloadMedia(mediaUrl: string) {
+    const response = await axios.get(mediaUrl, {
+      responseType: 'arraybuffer',
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`,
+      },
+    });
+
+    return {
+      buffer: Buffer.from(response.data),
+      contentType:
+        String(response.headers['content-type'] || '').trim() || 'image/jpeg',
     };
   }
 }
