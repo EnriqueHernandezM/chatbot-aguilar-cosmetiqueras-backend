@@ -176,12 +176,12 @@ export class ConversationFlowService {
 
     return {
       reply: `¡Hola! 😊
-
 Gracias por tu interés en nuestras cosmetiqueras.
 
-Somos fabricantes y distribuidores, con precios de mayoreo desde ${minimumPieces} piezas.
+✨ Somos fabricantes y distribuidores
+📦 Mayoreo desde ${minimumPieces} piezas.
 
-Para ayudarte más rápido, elige una opción:
+¿Qué te gustaría consultar?
 
 
 1️⃣ Modelos y precios
@@ -192,7 +192,7 @@ Para ayudarte más rápido, elige una opción:
 
 4️⃣ Ubicación
 
-5️⃣ Hablar con un asesor`,
+5️⃣ Atención personalizada`,
       nextState: ConversationState.MENU,
     };
   }
@@ -204,7 +204,7 @@ Para ayudarte más rápido, elige una opción:
 
 2️⃣ Tengo una duda
 
-3️⃣ Generar cotización
+3️⃣ Cotizar mi pedido
 
 4️⃣ Volver al menú`;
   }
@@ -277,7 +277,7 @@ Miguel Hidalgo Cdmx"
       return `Te comparto nuestros modelos más vendidos 👇`;
     }
 
-    return `Aquí te compartimos nuestros modelos y precios disponibles 👇`;
+    return `Te compartimos nuestros modelos más vendido 👇`;
   }
 
   private getDynamicsMessage(region: UserRegion): string {
@@ -319,7 +319,7 @@ Miguel Hidalgo Cdmx"
     
 1️⃣ Elige modelo, color y cantidad
 2️⃣ Genera una cotizacion o habla con un    
-   agente
+   agente 
 3️⃣ Se confirma disponibilidad de materiales
 4️⃣ Se realiza anticipo
 5️⃣ Se agenda entrega/envío`;

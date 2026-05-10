@@ -182,7 +182,7 @@ Podrias escribir tu mensaje?`;
         // 2. Luego el texto + URL de la página
         if (pageUrl) {
           const pageIntroMessage =
-            'Aquí puedes ver todos los colores y modelos disponibles 👇';
+            'Tenemos más colores y modelos disponibles aquí 👇';
 
           await this.whatsappService.sendText(waId, pageIntroMessage);
           await this.messagesService.createMessage({
