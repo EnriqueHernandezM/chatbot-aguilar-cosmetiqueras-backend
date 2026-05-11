@@ -8,6 +8,9 @@ primary_region = 'dfw'
 
 [build]
 
+[env]
+  NODE_ENV = 'production'
+
 [http_service]
   internal_port = 8082
   force_https = true

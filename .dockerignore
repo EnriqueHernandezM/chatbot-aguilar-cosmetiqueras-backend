@@ -4,3 +4,5 @@
 .env
 Dockerfile
 fly.toml
+fly.dev.toml
+fly.prod.toml

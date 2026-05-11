@@ -6,6 +6,8 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "deploy:prod": "fly deploy",
+    "deploy:dev": "fly deploy -c fly.dev.toml",
     "build": "nest build",
     "start": "node dist/main.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
