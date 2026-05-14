@@ -105,7 +105,7 @@ export class ConversationFlowService {
       case '2':
         return {
           reply:
-            '¡Gracias! 😊\n\nRevisaremos tu mensaje y te responderemos en breve.',
+            'Claro 😊\n\nCuéntanos tu duda o lo que necesitas y un asesor revisará tu mensaje en breve.',
           nextState: ConversationState.OPEN_QUESTION,
         };
 
