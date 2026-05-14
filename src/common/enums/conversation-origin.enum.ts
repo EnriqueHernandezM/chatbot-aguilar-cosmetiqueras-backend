@@ -1,4 +1,4 @@
 export enum ConversationOrigin {
   MONTERREY = 'monterrey',
-  NATIONAL = 'naciona;',
+  NATIONAL = 'nacional',
 }

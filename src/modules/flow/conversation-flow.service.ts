@@ -82,7 +82,7 @@ export class ConversationFlowService {
 
       case '5':
         return {
-          reply: 'Perfecto 👍 Un asesor te atenderá en breve.',
+          reply: 'Perfecto 👍 Te atenderemos en breve.',
           nextState: ConversationState.HUMAN_HANDOFF,
         };
 
@@ -105,7 +105,7 @@ export class ConversationFlowService {
       case '2':
         return {
           reply:
-            'Gracias por tu pregunta 😊\n\nUn asesor revisará tu mensaje y te responderá pronto.',
+            '¡Gracias! 😊\n\nRevisaremos tu mensaje y te responderemos en breve.',
           nextState: ConversationState.OPEN_QUESTION,
         };
 
@@ -133,9 +133,8 @@ export class ConversationFlowService {
 
     if (!parsed || !parsed.quantity || !parsed.product) {
       return {
-        reply: `No pude identificar bien los datos de la cotización.
-
-        Un asesor revisará tu mensaje.`,
+        reply: `Tu solicitud necesita algunos detalles adicionales 😊.
+      En breve te ayudaremos a completar tu cotización..`,
         nextState: ConversationState.HUMAN_HANDOFF,
       };
     }
@@ -155,9 +154,8 @@ export class ConversationFlowService {
     return {
       reply: `¡Perfecto! 🙌
 
-    Tu solicitud de cotización fue recibida.
-
-    Un asesor revisará tu pedido y te contactará en breve.`,
+    Tu solicitud de cotización ya fue recibida.
+    En breve nos pondremos en contacto contigo.`,
       nextState: ConversationState.WAITING_HUMAN,
     };
   }
@@ -166,7 +164,7 @@ export class ConversationFlowService {
   private handleOpenQuestion(message: string): FlowResponse {
     return {
       reply:
-        'Gracias por tu pregunta 😊\n\nUn asesor revisará tu mensaje y te responderá pronto.',
+        '¡Gracias! 😊\n\nRevisaremos tu mensaje y te responderemos en breve.',
       nextState: ConversationState.WAITING_HUMAN,
     };
   }
@@ -182,7 +180,6 @@ Gracias por tu interés en nuestras cosmetiqueras.
 📦 Mayoreo desde ${minimumPieces} piezas.
 
 ¿Qué te gustaría consultar?
-
 
 1️⃣ Modelos y precios
 
@@ -277,7 +274,7 @@ Miguel Hidalgo Cdmx"
       return `Te comparto nuestros modelos más vendidos 👇`;
     }
 
-    return `Te compartimos nuestros modelos más vendido 👇`;
+    return `Te compartimos nuestros modelos más vendidos 👇`;
   }
 
   private getDynamicsMessage(region: UserRegion): string {

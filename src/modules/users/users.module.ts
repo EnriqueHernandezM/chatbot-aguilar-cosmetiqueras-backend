@@ -16,9 +16,9 @@ import { UsersController } from './users.controller';
         secret:
           configService.get<string>('JWT_SECRET') ||
           'change_this_in_env_jwt_secret',
-        signOptions: {
+        /* signOptions: {
           expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '8h',
-        },
+        }, */
       }),
     }),
   ],
