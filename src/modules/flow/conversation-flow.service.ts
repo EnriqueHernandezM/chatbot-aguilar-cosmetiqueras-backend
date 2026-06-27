@@ -24,7 +24,7 @@ export class ConversationFlowService {
 
     switch (conversation.currentState) {
       case ConversationState.MENU:
-        return this.handleMenu(message, region);
+        return this.handleMenu(message, region, conversation);
 
       case ConversationState.SHOW_MODELS:
       case ConversationState.SHOW_DYNAMICS:
@@ -48,7 +48,11 @@ export class ConversationFlowService {
     }
   }
 
-  private handleMenu(message: string, region: UserRegion): FlowResponse {
+  private handleMenu(
+    message: string,
+    region: UserRegion,
+    conversation: Conversation,
+  ): FlowResponse {
     const input = message.trim();
 
     switch (input) {
@@ -81,6 +85,10 @@ export class ConversationFlowService {
         };
 
       default:
+        if (this.isInitialMenuInteraction(conversation)) {
+          return this.showMenu(region);
+        }
+
         return this.personalizedAttentionResponse();
     }
   }
@@ -163,6 +171,23 @@ export class ConversationFlowService {
         'Gracias 😊\n\nHemos recibido tu mensaje y en un momento recibirás atención personalizada.',
       nextState: ConversationState.WAITING_HUMAN,
     };
+  }
+
+  private isInitialMenuInteraction(conversation: Conversation): boolean {
+    const timestamps = conversation as Conversation & {
+      createdAt?: Date;
+      updatedAt?: Date;
+    };
+
+    if (!timestamps.createdAt || !timestamps.updatedAt) {
+      return false;
+    }
+
+    return (
+      Math.abs(
+        timestamps.updatedAt.getTime() - timestamps.createdAt.getTime(),
+      ) < 1000
+    );
   }
 
   private showMenu(region: UserRegion = 'national'): FlowResponse {

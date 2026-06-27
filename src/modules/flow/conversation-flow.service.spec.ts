@@ -74,10 +74,34 @@ describe('ConversationFlowService', () => {
     });
   });
 
-  it('sends free menu messages to personalized attention without showing the menu again', async () => {
+  it('shows the main menu when the first message is free text', async () => {
+    const now = new Date('2026-06-27T12:00:00.000Z');
     const conversation = {
       _id: new Types.ObjectId(),
       currentState: ConversationState.MENU,
+      createdAt: now,
+      updatedAt: now,
+    } as any;
+
+    const response = await service.processMessage(
+      conversation,
+      'Me interesa una cosmetiquera personalizada',
+      '525511111111',
+    );
+
+    expect(response).toMatchObject({
+      nextState: ConversationState.MENU,
+    });
+    expect(response?.reply).toContain('1️⃣ Modelos y precios');
+    expect(response?.reply).not.toContain('Atención personalizada');
+  });
+
+  it('sends free menu messages to personalized attention after the menu was shown', async () => {
+    const conversation = {
+      _id: new Types.ObjectId(),
+      currentState: ConversationState.MENU,
+      createdAt: new Date('2026-06-27T12:00:00.000Z'),
+      updatedAt: new Date('2026-06-27T12:00:02.000Z'),
     } as any;
 
     const response = await service.processMessage(
