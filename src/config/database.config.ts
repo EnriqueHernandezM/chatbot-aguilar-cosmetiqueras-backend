@@ -10,6 +10,7 @@ class DatabaseMongooseConfig {
   private constructor() {
     const uri =
       process.env.MONGO_URI || 'mongodb://localhost:27017/chatbot_aguilar';
+    console.log(uri);
 
     this.options = {
       uri,

@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { HttpExceptionFilter } from './http-exception.filter';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import {
@@ -11,6 +11,7 @@ import {
 } from './common/security/security.utils';
 
 async function bootstrap() {
+  const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
 
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
@@ -33,5 +34,10 @@ async function bootstrap() {
 
   const port = Number(process.env.PORT) || 8082;
   await app.listen(port, '0.0.0.0');
+
+  const localUrl = await app.getUrl();
+  logger.log(`Servidor corriendo en el puerto: ${port}`);
+  logger.log(`URL local: ${localUrl}`);
+  logger.log(`Swagger: ${localUrl}/api`);
 }
 bootstrap();

@@ -7,6 +7,13 @@ import { LeadStatus } from '../../../common/enums/lead-status.enum';
 export class Lead extends Document {
   @Prop({
     type: Types.ObjectId,
+    ref: 'Tenant',
+    index: true,
+  })
+  tenantId: Types.ObjectId;
+
+  @Prop({
+    type: Types.ObjectId,
     ref: 'Conversation',
     required: true,
   })

@@ -1,8 +1,15 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class QuickResponse extends Document {
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Tenant',
+    index: true,
+  })
+  tenantId: Types.ObjectId;
+
   @Prop({ required: true, trim: true })
   category: string;
 

@@ -8,6 +8,13 @@ import { ConversationLastMessage } from '../interfaces/conversation-last-message
 
 @Schema({ timestamps: true })
 export class Conversation extends Document {
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Tenant',
+    index: true,
+  })
+  tenantId: Types.ObjectId;
+
   @Prop({ required: true })
   waId: string;
 
@@ -52,3 +59,5 @@ export class Conversation extends Document {
 }
 
 export const ConversationSchema = SchemaFactory.createForClass(Conversation);
+
+ConversationSchema.index({ tenantId: 1, waId: 1 });

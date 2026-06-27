@@ -8,6 +8,13 @@ import { MessageType } from '../../../common/enums/message-type.enum';
 export class Message extends Document {
   @Prop({
     type: Types.ObjectId,
+    ref: 'Tenant',
+    index: true,
+  })
+  tenantId: Types.ObjectId;
+
+  @Prop({
+    type: Types.ObjectId,
     ref: 'Conversation',
     required: true,
   })
@@ -41,3 +48,5 @@ export class Message extends Document {
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
+
+MessageSchema.index({ tenantId: 1, conversationId: 1, createdAt: -1 });

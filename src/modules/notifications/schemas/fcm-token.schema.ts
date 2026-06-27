@@ -5,6 +5,13 @@ import { Document, Types } from 'mongoose';
 export class FcmToken extends Document {
   @Prop({
     type: Types.ObjectId,
+    ref: 'Tenant',
+    index: true,
+  })
+  tenantId: Types.ObjectId;
+
+  @Prop({
+    type: Types.ObjectId,
     ref: 'User',
     required: true,
     index: true,

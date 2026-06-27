@@ -51,14 +51,23 @@ export class UsersService {
   }
 
   async login(payload: LoginUserDto) {
+    console.log(3333333333333);
+
+    console.log(payload);
+
     const email = payload.email.trim().toLowerCase();
     const user = await this.userModel
       .findOne({ email, active: true })
       .select('+passwordHash tokenVersion role');
+    console.log(user);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
+    console.log(33433539);
+
+    console.log(payload.password);
+    console.log(this.hashPassword(payload.password));
 
     const isValid = user.passwordHash === this.hashPassword(payload.password);
     if (!isValid) {
