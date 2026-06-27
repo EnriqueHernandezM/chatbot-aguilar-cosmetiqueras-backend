@@ -31,7 +31,7 @@ export class ConversationFlowService {
       case ConversationState.SHOW_DELIVERY:
       case ConversationState.SHOW_LOCATION:
       case ConversationState.SHOW_HOW_TO_BUY:
-        return this.handlePostInfoMenu(message);
+        return this.handlePostInfoMenu(message, region);
 
       case ConversationState.CAPTURE_QUOTE_DATA:
         return await this.handleQuoteCapture(message, conversation);
@@ -80,18 +80,15 @@ export class ConversationFlowService {
           nextState: ConversationState.SHOW_LOCATION,
         };
 
-      case '5':
-        return {
-          reply: 'Perfecto 👍 Te atenderemos en breve.',
-          nextState: ConversationState.HUMAN_HANDOFF,
-        };
-
       default:
-        return this.showMenu(region);
+        return this.personalizedAttentionResponse();
     }
   }
 
-  private handlePostInfoMenu(message: string): FlowResponse {
+  private handlePostInfoMenu(
+    message: string,
+    region: UserRegion,
+  ): FlowResponse {
     const input = message.trim();
 
     switch (input) {
@@ -104,24 +101,15 @@ export class ConversationFlowService {
 
       case '2':
         return {
-          reply:
-            'Claro 😊\n\nCuéntanos tu duda o lo que necesitas y un asesor revisará tu mensaje en breve.',
-          nextState: ConversationState.OPEN_QUESTION,
-        };
-
-      case '3':
-        return {
           reply: this.quoteInstructions(),
           nextState: ConversationState.CAPTURE_QUOTE_DATA,
         };
 
-      case '4':
-        return this.showMenu();
+      case '3':
+        return this.showMenu(region);
 
       default:
-        return {
-          reply: this.postInfoMenu(),
-        };
+        return this.personalizedAttentionResponse();
     }
   }
 
@@ -169,17 +157,24 @@ export class ConversationFlowService {
     };
   }
 
+  private personalizedAttentionResponse(): FlowResponse {
+    return {
+      reply:
+        'Gracias 😊\n\nHemos recibido tu mensaje y en un momento recibirás atención personalizada.',
+      nextState: ConversationState.WAITING_HUMAN,
+    };
+  }
+
   private showMenu(region: UserRegion = 'national'): FlowResponse {
     const minimumPieces = region === 'monterrey' ? 25 : 30;
 
     return {
-      reply: `¡Hola! 😊
-Gracias por tu interés en nuestras cosmetiqueras.
+      reply: `¡Hola! 😊 Gracias por tu interés.
 
-✨ Somos fabricantes y distribuidores
-📦 Mayoreo desde ${minimumPieces} piezas.
+✨ Somos fabricantes y distribuidores.
+📦 Venta por mayoreo desde ${minimumPieces} piezas.
 
-¿Qué te gustaría consultar?
+Escríbenos tu consulta o utiliza nuestro menú enviando el número correspondiente.
 
 1️⃣ Modelos y precios
 
@@ -187,23 +182,19 @@ Gracias por tu interés en nuestras cosmetiqueras.
 
 3️⃣ Tiempos de entrega
 
-4️⃣ Ubicación
-
-5️⃣ Atención personalizada`,
+4️⃣ Ubicación`,
       nextState: ConversationState.MENU,
     };
   }
 
   private postInfoMenu(): string {
-    return `¿Cómo te gustaría continuar? 😊
+    return `Envíanos tu consulta o elige cómo te gustaría continuar.
 
-1️⃣ Como comprar
+1️⃣ Cómo comprar
 
-2️⃣ Tengo una duda
+2️⃣ Cotizar mi pedido
 
-3️⃣ Cotizar mi pedido
-
-4️⃣ Volver al menú`;
+3️⃣ Volver al menú`;
   }
 
   private quoteInstructions(): string {
@@ -233,16 +224,16 @@ Miguel Hidalgo Cdmx"
       • Entrega inmediata según disponibilidad, puede ser en persona o uber envios
 
       🛠 *Sobre pedido*
-      • Tiempo de producción: 4 a 7 días  
+      • Tiempo de producción: 4 a 7 días
 
       `;
     }
 
     return `
       🛠 *Producción y envío*
-      • Tiempo estimado: 4 a 10 días  
-      • Puede variar según cantidad, ubicación o 
-        carga de trabajo y personalización  
+      • Tiempo estimado: 4 a 10 días
+      • Puede variar según cantidad, ubicación o
+        carga de trabajo y personalización
 
       `;
   }
@@ -251,9 +242,9 @@ Miguel Hidalgo Cdmx"
       return `
     📍 Nuestra matriz se encuentra en Tezoyuca, Estado de México.
 
-    Sin embargo, contamos con un distribuidor en Nuevo León 😊  
-    • Stock disponible  
-    • Entrega inmediata según disponibilidad  
+    Sin embargo, contamos con un distribuidor en Nuevo León 😊
+    • Stock disponible
+    • Entrega inmediata según disponibilidad
 
     No contamos con tienda física, trabajamos directamente bajo disponibilidad y entrega, lo que nos permite ofrecer mejor precio y rapidez 🚀
     `;
@@ -262,8 +253,8 @@ Miguel Hidalgo Cdmx"
     return `
     📍 Nuestra matriz se encuentra en Tezoyuca, Estado de México.
 
-    • Realizamos envíos a toda la República 🇲🇽  
-    • Producción y envío según disponibilidad  
+    • Realizamos envíos a toda la República 🇲🇽
+    • Producción y envío según disponibilidad
 
     No contamos con tienda física, trabajamos directamente bajo pedido y envío, lo que nos permite ofrecer mejor precio 😊
     `;
@@ -281,42 +272,42 @@ Miguel Hidalgo Cdmx"
     if (region === 'monterrey') {
       return `
      📦 *Sobre stock disponible*
-      • Entrega inmediata según disponibilidad  
-      • Punto intermedio para entrega  
-      • En compras mayores a 80 piezas 
-         se solicita anticipo  
+      • Entrega inmediata según disponibilidad
+      • Punto intermedio para entrega
+      • En compras mayores a 80 piezas
+         se solicita anticipo
 
       🛠 *Sobre pedido*
-      • Anticipo de $500 para iniciar producción  
-      • Tiempo de producción: 4 a 10 días  
-      • Envíos a toda la República 🇲🇽  
+      • Anticipo de $500 para iniciar producción
+      • Tiempo de producción: 4 a 10 días
+      • Envíos a toda la República 🇲🇽
 
       🎨 *Personalización*
-      • Envíanos tu idea o diseño  
-      • Anticipo de $500 para iniciar producción  
-      • Tiempo de producción: 8 a 10 días  
+      • Envíanos tu idea o diseño
+      • Anticipo de $500 para iniciar producción
+      • Tiempo de producción: 8 a 10 días
       `;
     }
 
     return `
       🛠 *Trabajamos sobre pedido*
-      • Anticipo de $500 para iniciar producción  
-      • Tiempo de producción: 4 a 10 días  
-      • Envíos a toda la República 🇲🇽  
+      • Anticipo de $500 para iniciar producción
+      • Tiempo de producción: 4 a 10 días
+      • Envíos a toda la República 🇲🇽
 
       🎨 *Personalización*
-      • Envíanos tu idea o diseño  
-      • Anticipo de $500 para iniciar producción  
-      • Tiempo de producción: 8 a 10 días  
+      • Envíanos tu idea o diseño
+      • Anticipo de $500 para iniciar producción
+      • Tiempo de producción: 8 a 10 días
       `;
   }
 
   private getHowToBuyMessage(): string {
     return `📌 ¿Cómo comprar?
-    
+
 1️⃣ Elige modelo, color y cantidad
-2️⃣ Genera una cotizacion o habla con un    
-   agente 
+2️⃣ Genera una cotizacion o habla con un
+   agente
 3️⃣ Se confirma disponibilidad de materiales
 4️⃣ Se realiza anticipo
 5️⃣ Se agenda entrega/envío`;
