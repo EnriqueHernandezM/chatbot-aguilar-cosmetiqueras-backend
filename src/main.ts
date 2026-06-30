@@ -40,4 +40,5 @@ async function bootstrap() {
   logger.log(`URL local: ${localUrl}`);
   logger.log(`Swagger: ${localUrl}/api`);
 }
+
 bootstrap();
