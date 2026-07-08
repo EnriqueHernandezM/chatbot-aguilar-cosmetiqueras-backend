@@ -2,7 +2,9 @@ import {
   IsBoolean,
   IsEnum,
   IsDefined,
+  IsIn,
   IsMongoId,
+  IsNumber,
   IsOptional,
   IsString,
 } from 'class-validator';
@@ -36,4 +38,29 @@ export class SendMessageDto {
   @Type(() => Boolean)
   @IsBoolean()
   internalNote?: boolean;
+
+  @IsOptional()
+  @IsIn(['device', 'gallery'])
+  source?: 'device' | 'gallery';
+
+  @IsOptional()
+  @IsString()
+  publicId?: string;
+
+  @IsOptional()
+  @IsString()
+  originalName?: string;
+
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  sizeBytes?: number;
+
+  @IsOptional()
+  @IsString()
+  caption?: string;
 }

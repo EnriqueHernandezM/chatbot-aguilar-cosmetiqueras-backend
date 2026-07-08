@@ -27,6 +27,10 @@ export class MessagesController {
     @Body() payload: SendMessageDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.messagesService.sendMessage(payload, req.user.tenantId);
+    return this.messagesService.sendMessage(
+      payload,
+      req.user.tenantId,
+      req.user.userId,
+    );
   }
 }

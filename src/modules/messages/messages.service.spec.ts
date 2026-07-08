@@ -7,6 +7,7 @@ import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { MessageFrom } from 'src/common/enums/message-from.enum';
 import { MessageType } from 'src/common/enums/message-type.enum';
 import { Tenant } from '../tenants/schemas/tenant.schema';
+import { GalleryService } from '../gallery/gallery.service';
 
 describe('MessagesService', () => {
   let service: MessagesService;
@@ -25,6 +26,9 @@ describe('MessagesService', () => {
   let whatsappService: {
     sendText: jest.Mock;
     sendImage: jest.Mock;
+  };
+  let galleryService: {
+    saveFromAgentUpload: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -48,6 +52,10 @@ describe('MessagesService', () => {
       sendImage: jest.fn(),
     };
 
+    galleryService = {
+      saveFromAgentUpload: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagesService,
@@ -66,6 +74,10 @@ describe('MessagesService', () => {
         {
           provide: WhatsAppService,
           useValue: whatsappService,
+        },
+        {
+          provide: GalleryService,
+          useValue: galleryService,
         },
       ],
     }).compile();
@@ -352,6 +364,145 @@ describe('MessagesService', () => {
       '5215551234567',
       'https://example.com/image-2.jpg',
     );
+    expect(result).toBe(createdMessage);
+  });
+
+  it('stores device image messages in gallery after sending to WhatsApp', async () => {
+    const tenantId = '67e8a7b7b9d2f3a1c4d5e6bb';
+    const userId = '67e8a7b7b9d2f3a1c4d5e6cc';
+    const conversation = {
+      _id: 'conversation-id',
+      tenantId,
+      waId: '5215551234567',
+    };
+    const imageUrl = 'https://example.com/image-1.jpg';
+    const createdMessage = {
+      _id: 'message-id',
+      conversationId: 'conversation-id',
+      from: MessageFrom.AGENT,
+      type: MessageType.IMAGE,
+      content: [imageUrl],
+      internalNote: false,
+    };
+
+    conversationModel.findOne.mockResolvedValue(conversation);
+    messageModel.create.mockResolvedValue(createdMessage);
+    conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
+    whatsappService.sendImage.mockResolvedValue(undefined);
+    galleryService.saveFromAgentUpload.mockResolvedValue({
+      _id: 'gallery-id',
+    });
+
+    const result = await service.sendMessage(
+      {
+        conversationId: 'conversation-id',
+        from: MessageFrom.AGENT,
+        type: MessageType.IMAGE,
+        content: imageUrl,
+        internalNote: false,
+        source: 'device',
+        caption: 'caption',
+      },
+      tenantId,
+      userId,
+    );
+
+    expect(whatsappService.sendImage).toHaveBeenCalledWith(
+      expect.any(Object),
+      '5215551234567',
+      imageUrl,
+    );
+    expect(galleryService.saveFromAgentUpload).toHaveBeenCalledWith({
+      tenantId: expect.any(Object),
+      uploadedBy: userId,
+      url: imageUrl,
+      publicId: undefined,
+      originalName: undefined,
+      mimeType: undefined,
+      sizeBytes: undefined,
+      caption: 'caption',
+    });
+    expect(result).toBe(createdMessage);
+  });
+
+  it('does not store gallery source image messages again', async () => {
+    const tenantId = '67e8a7b7b9d2f3a1c4d5e6bb';
+    const conversation = {
+      _id: 'conversation-id',
+      tenantId,
+      waId: '5215551234567',
+    };
+    const imageUrl = 'https://example.com/image-1.jpg';
+    const createdMessage = {
+      _id: 'message-id',
+      conversationId: 'conversation-id',
+      from: MessageFrom.AGENT,
+      type: MessageType.IMAGE,
+      content: [imageUrl],
+      internalNote: false,
+    };
+
+    conversationModel.findOne.mockResolvedValue(conversation);
+    messageModel.create.mockResolvedValue(createdMessage);
+    conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
+    whatsappService.sendImage.mockResolvedValue(undefined);
+
+    const result = await service.sendMessage(
+      {
+        conversationId: 'conversation-id',
+        from: MessageFrom.AGENT,
+        type: MessageType.IMAGE,
+        content: imageUrl,
+        internalNote: false,
+        source: 'gallery',
+      },
+      tenantId,
+      '67e8a7b7b9d2f3a1c4d5e6cc',
+    );
+
+    expect(galleryService.saveFromAgentUpload).not.toHaveBeenCalled();
+    expect(result).toBe(createdMessage);
+  });
+
+  it('keeps image send response successful when gallery storage fails', async () => {
+    const tenantId = '67e8a7b7b9d2f3a1c4d5e6bb';
+    const conversation = {
+      _id: 'conversation-id',
+      tenantId,
+      waId: '5215551234567',
+    };
+    const imageUrl = 'https://example.com/image-1.jpg';
+    const createdMessage = {
+      _id: 'message-id',
+      conversationId: 'conversation-id',
+      from: MessageFrom.AGENT,
+      type: MessageType.IMAGE,
+      content: [imageUrl],
+      internalNote: false,
+    };
+
+    conversationModel.findOne.mockResolvedValue(conversation);
+    messageModel.create.mockResolvedValue(createdMessage);
+    conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
+    whatsappService.sendImage.mockResolvedValue(undefined);
+    galleryService.saveFromAgentUpload.mockRejectedValue(
+      new Error('duplicate key'),
+    );
+
+    const result = await service.sendMessage(
+      {
+        conversationId: 'conversation-id',
+        from: MessageFrom.AGENT,
+        type: MessageType.IMAGE,
+        content: imageUrl,
+        internalNote: false,
+        source: 'device',
+      },
+      tenantId,
+      '67e8a7b7b9d2f3a1c4d5e6cc',
+    );
+
+    expect(galleryService.saveFromAgentUpload).toHaveBeenCalled();
     expect(result).toBe(createdMessage);
   });
 

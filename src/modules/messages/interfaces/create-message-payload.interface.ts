@@ -11,4 +11,10 @@ export interface CreateMessagePayload {
   content: string | string[];
   waMessageId?: string;
   internalNote?: boolean;
+  source?: 'device' | 'gallery';
+  publicId?: string;
+  originalName?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  caption?: string;
 }

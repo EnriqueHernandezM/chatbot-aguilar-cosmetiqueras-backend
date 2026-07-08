@@ -10,9 +10,11 @@ import {
 } from '../conversations/schemas/conversation.schema';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { Tenant, TenantSchema } from '../tenants/schemas/tenant.schema';
+import { GalleryModule } from '../gallery/gallery.module';
 
 @Module({
   imports: [
+    GalleryModule,
     MongooseModule.forFeature([
       { name: Message.name, schema: MessageSchema },
       { name: Conversation.name, schema: ConversationSchema },

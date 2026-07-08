@@ -13,6 +13,7 @@ import { FlowModule } from './modules/flow/flow.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { QuickResponsesModule } from './modules/quick-responses/quick-responses.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
+import { GalleryModule } from './modules/gallery/gallery.module';
 import { JwtAuthGuard } from './common/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './common/auth/guards/roles.guard';
 import { HealthController } from './health.controller';
@@ -40,6 +41,7 @@ import { ConfigModule } from '@nestjs/config';
     NotificationsModule,
     QuickResponsesModule,
     TenantsModule,
+    GalleryModule,
   ],
   providers: [
     {

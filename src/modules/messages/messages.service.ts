@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -12,9 +13,12 @@ import { Conversation } from '../conversations/schemas/conversation.schema';
 import { MessageFrom } from 'src/common/enums/message-from.enum';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { Tenant } from '../tenants/schemas/tenant.schema';
+import { GalleryService } from '../gallery/gallery.service';
 
 @Injectable()
 export class MessagesService {
+  private readonly logger = new Logger(MessagesService.name);
+
   constructor(
     @InjectModel(Message.name)
     private messageModel: Model<Message>,
@@ -23,6 +27,7 @@ export class MessagesService {
     @InjectModel(Tenant.name)
     private tenantModel: Model<Tenant>,
     private readonly whatsappService: WhatsAppService,
+    private readonly galleryService: GalleryService,
   ) {}
   async messageExists(waMessageId: string, tenantId?: Types.ObjectId) {
     if (!waMessageId) return false;
@@ -76,7 +81,11 @@ export class MessagesService {
     return message;
   }
 
-  async sendMessage(payload: CreateMessagePayload, tenantId?: string) {
+  async sendMessage(
+    payload: CreateMessagePayload,
+    tenantId?: string,
+    authenticatedUserId?: string,
+  ) {
     const tenantObjectId = tenantId ? new Types.ObjectId(tenantId) : undefined;
     const conversation = await this.findConversationOrFail(
       payload.conversationId,
@@ -105,11 +114,22 @@ export class MessagesService {
         this.getTextContent(message.content),
       );
     } else if (message.type === MessageType.IMAGE) {
-      for (const imageUrl of this.getImageContent(message.content)) {
+      const imageUrls = this.getImageContent(message.content);
+
+      for (const imageUrl of imageUrls) {
         await this.whatsappService.sendImage(
           tenant,
           conversation.waId,
           imageUrl,
+        );
+      }
+
+      if (payload.source === 'device' && authenticatedUserId) {
+        await this.saveAgentUploadsToGallery(
+          payload,
+          imageUrls,
+          tenantObjectId ?? payload.tenantId ?? conversation.tenantId,
+          authenticatedUserId,
         );
       }
     }
@@ -246,5 +266,35 @@ export class MessagesService {
     }
 
     return content;
+  }
+
+  private async saveAgentUploadsToGallery(
+    payload: CreateMessagePayload,
+    imageUrls: string[],
+    tenantId: Types.ObjectId,
+    uploadedBy: string,
+  ) {
+    try {
+      for (const imageUrl of imageUrls) {
+        await this.galleryService.saveFromAgentUpload({
+          tenantId,
+          uploadedBy,
+          url: imageUrl,
+          publicId: payload.publicId,
+          originalName: payload.originalName,
+          mimeType: payload.mimeType,
+          sizeBytes: payload.sizeBytes,
+          caption: payload.caption,
+        });
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown gallery error';
+
+      this.logger.error(
+        `Gallery saveFromAgentUpload failed: ${message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+    }
   }
 }
