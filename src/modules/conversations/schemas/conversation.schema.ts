@@ -50,6 +50,8 @@ export class Conversation extends Document {
   lastMessageAt: Date;
   @Prop({ default: null })
   lastReadAt: Date;
+  @Prop({ type: Number, default: 0 })
+  unreadCount: number;
   @Prop({ type: Boolean, default: false })
   isPotentialSale: boolean;
   @Prop({ type: Boolean, default: false })

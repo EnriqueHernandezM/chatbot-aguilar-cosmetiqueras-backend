@@ -26,5 +26,4 @@ export class QuickResponse extends Document {
   order: number;
 }
 
-export const QuickResponseSchema =
-  SchemaFactory.createForClass(QuickResponse);
+export const QuickResponseSchema = SchemaFactory.createForClass(QuickResponse);

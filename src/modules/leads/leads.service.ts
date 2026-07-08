@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
+import { Conversation } from '../conversations/schemas/conversation.schema';
 import { Lead } from './schemas/lead.schema';
 import { CreateLeadPayload } from './interfaces/create-lead-payload.interface';
 import { UpdateLeadDto } from './dto/update-lead.dto';
@@ -10,10 +11,21 @@ export class LeadsService {
   constructor(
     @InjectModel(Lead.name)
     private leadModel: Model<Lead>,
+    @InjectModel(Conversation.name)
+    private conversationModel: Model<Conversation>,
   ) {}
 
   async createLead(data: CreateLeadPayload) {
+    const conversation = await this.conversationModel
+      .findById(data.conversationId)
+      .select('tenantId');
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
     return this.leadModel.create({
+      tenantId: conversation.tenantId,
       conversationId: data.conversationId,
       name: data.name,
       quantity: data.quantity,
@@ -22,12 +34,17 @@ export class LeadsService {
     });
   }
 
-  async findAll() {
-    return this.leadModel.find().sort({ updatedAt: -1, createdAt: -1 });
+  async findAll(tenantId: string) {
+    return this.leadModel
+      .find({ tenantId: new Types.ObjectId(tenantId) })
+      .sort({ updatedAt: -1, createdAt: -1 });
   }
 
-  async findById(id: string) {
-    const lead = await this.leadModel.findById(id);
+  async findById(id: string, tenantId: string) {
+    const lead = await this.leadModel.findOne({
+      _id: id,
+      tenantId: new Types.ObjectId(tenantId),
+    });
     if (!lead) {
       throw new NotFoundException('Lead not found');
     }
@@ -35,9 +52,9 @@ export class LeadsService {
     return lead;
   }
 
-  async updateLead(id: string, payload: UpdateLeadDto) {
-    const lead = await this.leadModel.findByIdAndUpdate(
-      id,
+  async updateLead(id: string, payload: UpdateLeadDto, tenantId: string) {
+    const lead = await this.leadModel.findOneAndUpdate(
+      { _id: id, tenantId: new Types.ObjectId(tenantId) },
       {
         $set: payload,
       },

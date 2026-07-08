@@ -34,27 +34,36 @@ describe('QuickResponsesService', () => {
   it('creates a quick response with default values', async () => {
     quickResponseModel.create.mockResolvedValue({ _id: 'qr-1' });
 
-    await service.create({
-      category: 'ATENCION',
-      title: 'Saludo inicial',
-      content: 'Hola, con gusto te atiendo.',
-    });
+    await service.create(
+      {
+        category: 'ATENCION',
+        title: 'Saludo inicial',
+        content: 'Hola, con gusto te atiendo.',
+      },
+      '67e8a7b7b9d2f3a1c4d5e6bb',
+    );
 
-    expect(quickResponseModel.create).toHaveBeenCalledWith({
-      category: 'ATENCION',
-      title: 'Saludo inicial',
-      content: 'Hola, con gusto te atiendo.',
-      status: true,
-      order: 0,
-    });
+    expect(quickResponseModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: expect.any(Object),
+        category: 'ATENCION',
+        title: 'Saludo inicial',
+        content: 'Hola, con gusto te atiendo.',
+        status: true,
+        order: 0,
+      }),
+    );
   });
 
   it('lists only active quick responses', async () => {
     sort.mockResolvedValue([{ _id: 'qr-1' }]);
 
-    await service.findAvailable();
+    await service.findAvailable('67e8a7b7b9d2f3a1c4d5e6bb');
 
-    expect(quickResponseModel.find).toHaveBeenCalledWith({ status: true });
+    expect(quickResponseModel.find).toHaveBeenCalledWith({
+      tenantId: expect.any(Object),
+      status: true,
+    });
     expect(sort).toHaveBeenCalledWith({
       category: 1,
       order: 1,

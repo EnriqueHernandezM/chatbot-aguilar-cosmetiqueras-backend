@@ -25,21 +25,32 @@ export class ConversationsController {
   constructor(private readonly conversationsService: ConversationsService) {}
 
   @Get()
-  async findAll(@Query() query: FindConversationsDto) {
-    return this.conversationsService.findAll(query);
+  async findAll(
+    @Query() query: FindConversationsDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.conversationsService.findAll(query, req.user.tenantId);
   }
 
   @Get('updates')
-  async getUpdates(@Query() query: GetConversationUpdatesDto) {
-    return this.conversationsService.getUpdates(query.since);
+  async getUpdates(
+    @Query() query: GetConversationUpdatesDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.conversationsService.getUpdates(query.since, req.user.tenantId);
   }
 
   @Patch(':id/assign')
   async assignConversation(
     @Param('id') id: string,
     @Body() payload: AssignConversationDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.conversationsService.assignConversation(id, payload.userId);
+    return this.conversationsService.assignConversation(
+      id,
+      payload.userId,
+      req.user.tenantId,
+    );
   }
 
   @Patch(':id/take')
@@ -47,32 +58,53 @@ export class ConversationsController {
     @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.conversationsService.takeConversation(id, req.user.sub);
+    return this.conversationsService.takeConversation(
+      id,
+      req.user.sub,
+      req.user.tenantId,
+    );
   }
 
   @Patch(':id/status')
   async updateStatus(
     @Param('id') id: string,
     @Body() payload: UpdateConversationStatusDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.conversationsService.updateStatus(id, payload.status);
+    return this.conversationsService.updateStatus(
+      id,
+      payload.status,
+      req.user.tenantId,
+    );
   }
 
   @Patch(':id/read')
-  async markAsRead(@Param('id') id: string) {
-    return this.conversationsService.markAsRead(id);
+  async markAsRead(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.conversationsService.markAsRead(
+      id,
+      undefined,
+      req.user.tenantId,
+    );
   }
 
   @Patch(':id/sale')
   async updateSaleFlags(
     @Param('id') id: string,
     @Body() payload: UpdateConversationSaleDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.conversationsService.updateSaleFlags(id, payload);
+    return this.conversationsService.updateSaleFlags(
+      id,
+      payload,
+      req.user.tenantId,
+    );
   }
 
   @Delete()
-  async deleteMany(@Body() payload: DeleteConversationsDto) {
-    return this.conversationsService.deleteMany(payload.ids);
+  async deleteMany(
+    @Body() payload: DeleteConversationsDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.conversationsService.deleteMany(payload.ids, req.user.tenantId);
   }
 }

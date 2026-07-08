@@ -6,6 +6,7 @@ import { Model, Types } from 'mongoose';
 
 import { IncomingMessageNotificationPayload } from './interfaces/incoming-message-notification.interface';
 import { FcmToken } from './schemas/fcm-token.schema';
+import { Conversation } from '../conversations/schemas/conversation.schema';
 
 type FirebaseCredentials = {
   projectId: string;
@@ -21,10 +22,13 @@ export class NotificationsService {
   constructor(
     @InjectModel(FcmToken.name)
     private readonly fcmTokenModel: Model<FcmToken>,
+    @InjectModel(Conversation.name)
+    private readonly conversationModel: Model<Conversation>,
   ) {}
 
   async saveFcmToken(
     userId: string,
+    tenantId: string,
     payload: {
       token: string;
       platform: string;
@@ -33,9 +37,13 @@ export class NotificationsService {
     },
   ) {
     const saved = await this.fcmTokenModel.findOneAndUpdate(
-      { token: payload.token.trim() },
+      {
+        token: payload.token.trim(),
+        tenantId: new Types.ObjectId(tenantId),
+      },
       {
         $set: {
+          tenantId: new Types.ObjectId(tenantId),
           userId: new Types.ObjectId(userId),
           token: payload.token.trim(),
           platform: payload.platform.trim(),
@@ -60,8 +68,9 @@ export class NotificationsService {
     };
   }
 
-  async deleteFcmToken(userId: string, token: string) {
+  async deleteFcmToken(userId: string, tenantId: string, token: string) {
     const result = await this.fcmTokenModel.deleteOne({
+      tenantId: new Types.ObjectId(tenantId),
       userId: new Types.ObjectId(userId),
       token: token.trim(),
     });
@@ -71,11 +80,12 @@ export class NotificationsService {
     };
   }
 
-  async sendTestNotification(userId: string, token: string) {
+  async sendTestNotification(userId: string, tenantId: string, token: string) {
     const cleanToken = token.trim();
 
     await this.fcmTokenModel.updateOne(
       {
+        tenantId: new Types.ObjectId(tenantId),
         userId: new Types.ObjectId(userId),
         token: cleanToken,
       },
@@ -102,9 +112,21 @@ export class NotificationsService {
   async sendIncomingMessageNotification(
     payload: IncomingMessageNotificationPayload,
   ) {
+    const conversation = await this.conversationModel
+      .findById(payload.conversationId)
+      .select('tenantId');
+
+    if (!conversation?.tenantId) {
+      return { sent: 0 };
+    }
+
+    const tenantId = conversation.tenantId;
     const tokenQuery = payload.assignedUserId
-      ? { userId: new Types.ObjectId(payload.assignedUserId) }
-      : {};
+      ? {
+          tenantId,
+          userId: new Types.ObjectId(payload.assignedUserId),
+        }
+      : { tenantId };
 
     const tokenDocuments = await this.fcmTokenModel
       .find(tokenQuery)

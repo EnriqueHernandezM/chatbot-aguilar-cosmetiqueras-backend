@@ -1,4 +1,11 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsEnum,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  MinLength,
+} from 'class-validator';
 import { UserRole } from 'src/common/enums/user-role.enum';
 
 export class CreateUserDto {
@@ -16,4 +23,7 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
+
+  @IsMongoId()
+  tenantId: string;
 }

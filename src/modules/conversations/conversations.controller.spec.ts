@@ -33,6 +33,7 @@ describe('ConversationsController', () => {
       user: {
         sub: 'user-123',
         role: 'admin',
+        tenantId: '67e8a7b7b9d2f3a1c4d5e6bb',
         tokenVersion: 1,
       },
     } as any;
@@ -46,16 +47,24 @@ describe('ConversationsController', () => {
     expect(conversationsService.takeConversation).toHaveBeenCalledWith(
       'conversation-1',
       'user-123',
+      '67e8a7b7b9d2f3a1c4d5e6bb',
     );
   });
 
   it('gets conversation updates from a timestamp', async () => {
     conversationsService.getUpdates.mockResolvedValue([]);
 
-    await controller.getUpdates({ since: '2026-03-30T10:00:00' });
+    const request = {
+      user: {
+        tenantId: '67e8a7b7b9d2f3a1c4d5e6bb',
+      },
+    } as any;
+
+    await controller.getUpdates({ since: '2026-03-30T10:00:00' }, request);
 
     expect(conversationsService.getUpdates).toHaveBeenCalledWith(
       '2026-03-30T10:00:00',
+      '67e8a7b7b9d2f3a1c4d5e6bb',
     );
   });
 });

@@ -19,13 +19,17 @@ export class WebhookController {
   constructor(private readonly webhookService: WebhookService) {}
 
   @Get()
-  verifyWebhook(
+  async verifyWebhook(
     @Query('hub_mode') mode: string,
     @Query('hub_challenge') challenge: string,
     @Query('hub_verify_token') token: string,
     @Res() res: Response,
   ) {
-    if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
+    const isValidToken =
+      mode === 'subscribe' &&
+      (await this.webhookService.isValidWebhookVerifyToken(token));
+
+    if (isValidToken) {
       return res.status(200).send(challenge);
     }
 
@@ -34,8 +38,8 @@ export class WebhookController {
 
   @Post()
   @HttpCode(200)
-  async receiveMessage(@Body() payload: any) {
-    await this.webhookService.processWebhook(payload);
-    return { status: 'received' };
+  receiveMessage(@Body() payload: any, @Res() res: Response) {
+    res.status(200).json({ status: 'received' });
+    void this.webhookService.processWebhook(payload);
   }
 }

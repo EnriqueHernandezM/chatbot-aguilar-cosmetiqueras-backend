@@ -67,31 +67,35 @@ export class ConversationsService {
   async markAsRead(
     conversationId: string | Types.ObjectId,
     timestamp = new Date(),
+    tenantId?: string | Types.ObjectId,
   ) {
-    return this.conversationModel.findByIdAndUpdate(
-      conversationId,
+    return this.conversationModel.findOneAndUpdate(
+      this.withTenant({ _id: conversationId }, tenantId),
       {
         $set: {
           lastReadAt: timestamp,
+          unreadCount: 0,
         },
       },
       { new: true },
     );
   }
 
-  async findOrCreateConversation(waId: string) {
+  async findOrCreateConversation(waId: string, tenantId?: Types.ObjectId) {
     const now = new Date();
 
     return this.conversationModel.findOneAndUpdate(
-      { waId },
+      this.withTenant({ waId }, tenantId),
       {
         $setOnInsert: {
+          tenantId,
           waId,
           currentState: ConversationState.MENU,
           status: ConversationStatus.ACTIVE,
           origin: detectRegion(waId),
           lastMessageAt: now,
           lastReadAt: null,
+          unreadCount: 0,
         },
       },
       {
@@ -124,8 +128,11 @@ export class ConversationsService {
     );
   }
 
-  async findAll(filters: FindConversationsFilters) {
+  async findAll(filters: FindConversationsFilters, tenantId: string) {
     const query: Record<string, string | Types.ObjectId> = {};
+    const tenantObjectId = new Types.ObjectId(tenantId);
+
+    query.tenantId = tenantObjectId;
 
     if (filters.status) {
       query.status = filters.status;
@@ -179,6 +186,7 @@ export class ConversationsService {
                     { $eq: ['$conversationId', '$$conversationIdString'] },
                   ],
                 },
+                tenantId: tenantObjectId,
                 internalNote: { $ne: true },
               },
             },
@@ -222,12 +230,14 @@ export class ConversationsService {
     });
   }
 
-  async getUpdates(since: string) {
+  async getUpdates(since: string, tenantId: string) {
     const sinceDate = new Date(since);
+    const tenantObjectId = new Types.ObjectId(tenantId);
 
     const updates = await this.conversationModel.aggregate([
       {
         $match: {
+          tenantId: tenantObjectId,
           updatedAt: { $gt: sinceDate },
         },
       },
@@ -253,6 +263,7 @@ export class ConversationsService {
                     { $eq: ['$conversationId', '$$conversationIdString'] },
                   ],
                 },
+                tenantId: tenantObjectId,
                 internalNote: { $ne: true },
               },
             },
@@ -333,15 +344,22 @@ export class ConversationsService {
     };
   }
 
-  async assignConversation(conversationId: string, userId: string) {
-    const user = await this.userModel.findById(userId).select('_id');
+  async assignConversation(
+    conversationId: string,
+    userId: string,
+    tenantId: string,
+  ) {
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const user = await this.userModel
+      .findOne({ _id: userId, tenantId: tenantObjectId })
+      .select('_id');
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     const conversation = await this.conversationModel
-      .findByIdAndUpdate(
-        conversationId,
+      .findOneAndUpdate(
+        { _id: conversationId, tenantId: tenantObjectId },
         {
           $set: {
             assignedTo: user._id,
@@ -358,21 +376,29 @@ export class ConversationsService {
     return conversation;
   }
 
-  async takeConversation(conversationId: string, userId: string) {
-    const user = await this.userModel.findById(userId).select('_id');
+  async takeConversation(
+    conversationId: string,
+    userId: string,
+    tenantId: string,
+  ) {
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const user = await this.userModel
+      .findOne({ _id: userId, tenantId: tenantObjectId })
+      .select('_id');
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     const conversation = await this.conversationModel
-      .findByIdAndUpdate(
-        conversationId,
+      .findOneAndUpdate(
+        { _id: conversationId, tenantId: tenantObjectId },
         {
           $set: {
             assignedTo: user._id,
             status: ConversationStatus.WAITING_HUMAN,
             currentState: ConversationState.HUMAN_HANDOFF,
             lastReadAt: new Date(),
+            unreadCount: 0,
           },
         },
         { new: true },
@@ -386,15 +412,19 @@ export class ConversationsService {
     return conversation;
   }
 
-  async updateStatus(conversationId: string, status: ConversationStatus) {
+  async updateStatus(
+    conversationId: string,
+    status: ConversationStatus,
+    tenantId: string,
+  ) {
     const currentState =
       status === ConversationStatus.WAITING_HUMAN
         ? ConversationState.WAITING_HUMAN
         : ConversationState.MENU;
 
     const conversation = await this.conversationModel
-      .findByIdAndUpdate(
-        conversationId,
+      .findOneAndUpdate(
+        { _id: conversationId, tenantId: new Types.ObjectId(tenantId) },
         {
           $set: {
             status,
@@ -412,9 +442,10 @@ export class ConversationsService {
     return conversation;
   }
 
-  async deleteMany(ids: string[]) {
+  async deleteMany(ids: string[], tenantId: string) {
     const result = await this.conversationModel.deleteMany({
       _id: { $in: ids },
+      tenantId: new Types.ObjectId(tenantId),
     });
 
     return {
@@ -425,6 +456,7 @@ export class ConversationsService {
   async updateSaleFlags(
     conversationId: string,
     payload: UpdateConversationSaleDto,
+    tenantId: string,
   ) {
     const update: Record<string, boolean> = {};
 
@@ -437,8 +469,8 @@ export class ConversationsService {
     }
 
     const conversation = await this.conversationModel
-      .findByIdAndUpdate(
-        conversationId,
+      .findOneAndUpdate(
+        { _id: conversationId, tenantId: new Types.ObjectId(tenantId) },
         {
           $set: update,
         },
@@ -463,5 +495,20 @@ export class ConversationsService {
       },
       { new: true },
     );
+  }
+
+  private withTenant(
+    query: Record<string, unknown>,
+    tenantId?: string | Types.ObjectId,
+  ) {
+    if (!tenantId) {
+      return query;
+    }
+
+    return {
+      ...query,
+      tenantId:
+        typeof tenantId === 'string' ? new Types.ObjectId(tenantId) : tenantId,
+    };
   }
 }

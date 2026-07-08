@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { createHash } from 'crypto';
 
 @Injectable()
 export class StorageService {
@@ -11,29 +12,51 @@ export class StorageService {
     contentType: string;
     tenantKey?: string;
   }) {
-    const cloudName = this.getCloudinaryCloudName();
-    const uploadPreset = this.getCloudinaryUploadPreset();
+    const config = this.getCloudinaryConfig();
 
-    if (!cloudName || !uploadPreset) {
+    if (!config.cloudName) {
       this.logger.warn('Cloudinary is not configured');
       return null;
     }
 
-    const folder = this.buildFolderPath(payload.tenantKey);
+    const assetFolder = this.buildFolderPath(payload.tenantKey);
+    const publicId = this.sanitizePublicId(payload.filename);
     const base64File = payload.buffer.toString('base64');
     const dataUri = `data:${payload.contentType};base64,${base64File}`;
     const requestBody = new URLSearchParams();
 
     requestBody.append('file', dataUri);
-    requestBody.append('upload_preset', uploadPreset);
-    requestBody.append('public_id', this.sanitizePublicId(payload.filename));
+    requestBody.append('public_id', publicId);
 
-    if (folder) {
-      requestBody.append('folder', folder);
+    if (assetFolder) {
+      requestBody.append('asset_folder', assetFolder);
+    }
+
+    if (config.uploadPreset) {
+      requestBody.append('upload_preset', config.uploadPreset);
+    } else if (config.apiKey && config.apiSecret) {
+      const timestamp = String(Math.floor(Date.now() / 1000));
+
+      requestBody.append('timestamp', timestamp);
+      requestBody.append('api_key', config.apiKey);
+      requestBody.append(
+        'signature',
+        this.signCloudinaryParams(
+          {
+            asset_folder: assetFolder,
+            public_id: publicId,
+            timestamp,
+          },
+          config.apiSecret,
+        ),
+      );
+    } else {
+      this.logger.warn('Cloudinary upload credentials are not configured');
+      return null;
     }
 
     const response = await axios.post(
-      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      `https://api.cloudinary.com/v1_1/${config.cloudName}/image/upload`,
       requestBody.toString(),
       {
         headers: {
@@ -48,7 +71,7 @@ export class StorageService {
 
     return {
       url: String(response.data.secure_url),
-      path: [folder, response.data.public_id].filter(Boolean).join('/'),
+      path: [assetFolder, response.data.public_id].filter(Boolean).join('/'),
     };
   }
 
@@ -56,6 +79,7 @@ export class StorageService {
     return (
       process.env.CLOUDINARY_CLOUD_NAME?.trim() ||
       process.env.VITE_CLOUDINARY_CLOUD_NAME?.trim() ||
+      this.getCloudinaryUrlConfig().cloudName ||
       ''
     );
   }
@@ -66,6 +90,53 @@ export class StorageService {
       process.env.VITE_CLOUDINARY_UPLOAD_PRESET?.trim() ||
       ''
     );
+  }
+
+  private getCloudinaryConfig() {
+    const urlConfig = this.getCloudinaryUrlConfig();
+
+    return {
+      cloudName: this.getCloudinaryCloudName(),
+      uploadPreset: this.getCloudinaryUploadPreset(),
+      apiKey:
+        process.env.CLOUDINARY_API_KEY?.trim() ||
+        process.env.VITE_CLOUDINARY_API_KEY?.trim() ||
+        urlConfig.apiKey,
+      apiSecret:
+        process.env.CLOUDINARY_API_SECRET?.trim() ||
+        process.env.VITE_CLOUDINARY_API_SECRET?.trim() ||
+        urlConfig.apiSecret,
+    };
+  }
+
+  private getCloudinaryUrlConfig() {
+    const cloudinaryUrl = process.env.CLOUDINARY_URL?.trim();
+
+    if (!cloudinaryUrl) {
+      return {
+        cloudName: '',
+        apiKey: '',
+        apiSecret: '',
+      };
+    }
+
+    try {
+      const parsedUrl = new URL(cloudinaryUrl);
+
+      return {
+        cloudName: parsedUrl.hostname,
+        apiKey: decodeURIComponent(parsedUrl.username),
+        apiSecret: decodeURIComponent(parsedUrl.password),
+      };
+    } catch {
+      this.logger.warn('Invalid CLOUDINARY_URL');
+
+      return {
+        cloudName: '',
+        apiKey: '',
+        apiSecret: '',
+      };
+    }
   }
 
   private getCloudinaryBaseFolder() {
@@ -108,5 +179,20 @@ export class StorageService {
       .replace(/[^a-z0-9_-]+/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-+|-+$/g, '');
+  }
+
+  private signCloudinaryParams(
+    params: Record<string, string | undefined>,
+    apiSecret: string,
+  ) {
+    const signaturePayload = Object.entries(params)
+      .filter(([, value]) => value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, value]) => `${key}=${value}`)
+      .join('&');
+
+    return createHash('sha1')
+      .update(`${signaturePayload}${apiSecret}`)
+      .digest('hex');
   }
 }

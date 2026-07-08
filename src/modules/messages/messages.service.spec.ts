@@ -6,6 +6,7 @@ import { Conversation } from '../conversations/schemas/conversation.schema';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { MessageFrom } from 'src/common/enums/message-from.enum';
 import { MessageType } from 'src/common/enums/message-type.enum';
+import { Tenant } from '../tenants/schemas/tenant.schema';
 
 describe('MessagesService', () => {
   let service: MessagesService;
@@ -15,8 +16,11 @@ describe('MessagesService', () => {
     find: jest.Mock;
   };
   let conversationModel: {
-    findById: jest.Mock;
+    findOne: jest.Mock;
     updateOne: jest.Mock;
+  };
+  let tenantModel: {
+    findById: jest.Mock;
   };
   let whatsappService: {
     sendText: jest.Mock;
@@ -31,8 +35,12 @@ describe('MessagesService', () => {
     };
 
     conversationModel = {
-      findById: jest.fn(),
+      findOne: jest.fn(),
       updateOne: jest.fn(),
+    };
+
+    tenantModel = {
+      findById: jest.fn(),
     };
 
     whatsappService = {
@@ -52,6 +60,10 @@ describe('MessagesService', () => {
           useValue: conversationModel,
         },
         {
+          provide: getModelToken(Tenant.name),
+          useValue: tenantModel,
+        },
+        {
           provide: WhatsAppService,
           useValue: whatsappService,
         },
@@ -59,6 +71,13 @@ describe('MessagesService', () => {
     }).compile();
 
     service = module.get<MessagesService>(MessagesService);
+    tenantModel.findById.mockResolvedValue({
+      _id: 'tenant-id',
+      whatsapp: {
+        phoneNumberId: 'phone-number-1',
+        accessToken: 'tenant-access-token',
+      },
+    });
   });
 
   it('should be defined', () => {
@@ -76,7 +95,7 @@ describe('MessagesService', () => {
       internalNote: true,
     };
 
-    conversationModel.findById.mockResolvedValue(conversation);
+    conversationModel.findOne.mockResolvedValue(conversation);
     messageModel.create.mockResolvedValue(createdMessage);
     conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
 
@@ -97,8 +116,43 @@ describe('MessagesService', () => {
     expect(result).toBe(createdMessage);
   });
 
-  it('sends agent text messages to WhatsApp when internalNote is false', async () => {
+  it('increments unread count when storing an incoming user message', async () => {
     const conversation = { _id: 'conversation-id', waId: '5215551234567' };
+    const createdMessage = {
+      _id: 'message-id',
+      conversationId: 'conversation-id',
+      from: MessageFrom.USER,
+      type: MessageType.TEXT,
+      content: 'hola',
+      internalNote: false,
+    };
+
+    conversationModel.findOne.mockResolvedValue(conversation);
+    messageModel.create.mockResolvedValue(createdMessage);
+    conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
+
+    const result = await service.createMessage({
+      conversationId: 'conversation-id',
+      from: MessageFrom.USER,
+      content: 'hola',
+    });
+
+    expect(conversationModel.updateOne).toHaveBeenCalledWith(
+      { _id: 'conversation-id' },
+      {
+        $max: { lastMessageAt: expect.any(Date) },
+        $inc: { unreadCount: 1 },
+      },
+    );
+    expect(result).toBe(createdMessage);
+  });
+
+  it('sends agent text messages to WhatsApp when internalNote is false', async () => {
+    const conversation = {
+      _id: 'conversation-id',
+      tenantId: 'tenant-id',
+      waId: '5215551234567',
+    };
     const createdMessage = {
       _id: 'message-id',
       conversationId: 'conversation-id',
@@ -108,7 +162,7 @@ describe('MessagesService', () => {
       internalNote: false,
     };
 
-    conversationModel.findById.mockResolvedValue(conversation);
+    conversationModel.findOne.mockResolvedValue(conversation);
     messageModel.create.mockResolvedValue(createdMessage);
     conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
     whatsappService.sendText.mockResolvedValue(undefined);
@@ -121,6 +175,12 @@ describe('MessagesService', () => {
     });
 
     expect(whatsappService.sendText).toHaveBeenCalledWith(
+      expect.objectContaining({
+        whatsapp: expect.objectContaining({
+          accessToken: 'tenant-access-token',
+          phoneNumberId: 'phone-number-1',
+        }),
+      }),
       '5215551234567',
       'hola cliente',
     );
@@ -128,7 +188,11 @@ describe('MessagesService', () => {
   });
 
   it('sends each image URL to WhatsApp when the message type is image', async () => {
-    const conversation = { _id: 'conversation-id', waId: '5215551234567' };
+    const conversation = {
+      _id: 'conversation-id',
+      tenantId: 'tenant-id',
+      waId: '5215551234567',
+    };
     const imageUrls = [
       'https://example.com/image-1.jpg',
       'https://example.com/image-2.jpg',
@@ -142,7 +206,7 @@ describe('MessagesService', () => {
       internalNote: false,
     };
 
-    conversationModel.findById.mockResolvedValue(conversation);
+    conversationModel.findOne.mockResolvedValue(conversation);
     messageModel.create.mockResolvedValue(createdMessage);
     conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
     whatsappService.sendImage.mockResolvedValue(undefined);
@@ -158,11 +222,23 @@ describe('MessagesService', () => {
     expect(whatsappService.sendImage).toHaveBeenCalledTimes(2);
     expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
       1,
+      expect.objectContaining({
+        whatsapp: expect.objectContaining({
+          accessToken: 'tenant-access-token',
+          phoneNumberId: 'phone-number-1',
+        }),
+      }),
       '5215551234567',
       'https://example.com/image-1.jpg',
     );
     expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
       2,
+      expect.objectContaining({
+        whatsapp: expect.objectContaining({
+          accessToken: 'tenant-access-token',
+          phoneNumberId: 'phone-number-1',
+        }),
+      }),
       '5215551234567',
       'https://example.com/image-2.jpg',
     );
@@ -170,7 +246,11 @@ describe('MessagesService', () => {
   });
 
   it('accepts messageType as an alias of type for image messages', async () => {
-    const conversation = { _id: 'conversation-id', waId: '5215551234567' };
+    const conversation = {
+      _id: 'conversation-id',
+      tenantId: 'tenant-id',
+      waId: '5215551234567',
+    };
     const createdMessage = {
       _id: 'message-id',
       conversationId: 'conversation-id',
@@ -180,7 +260,7 @@ describe('MessagesService', () => {
       internalNote: false,
     };
 
-    conversationModel.findById.mockResolvedValue(conversation);
+    conversationModel.findOne.mockResolvedValue(conversation);
     messageModel.create.mockResolvedValue(createdMessage);
     conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
     whatsappService.sendImage.mockResolvedValue(undefined);
@@ -200,6 +280,12 @@ describe('MessagesService', () => {
       }),
     );
     expect(whatsappService.sendImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        whatsapp: expect.objectContaining({
+          accessToken: 'tenant-access-token',
+          phoneNumberId: 'phone-number-1',
+        }),
+      }),
       '5215551234567',
       'https://example.com/image-1.jpg',
     );
@@ -207,7 +293,11 @@ describe('MessagesService', () => {
   });
 
   it('parses stringified image URL arrays before sending them to WhatsApp', async () => {
-    const conversation = { _id: 'conversation-id', waId: '5215551234567' };
+    const conversation = {
+      _id: 'conversation-id',
+      tenantId: 'tenant-id',
+      waId: '5215551234567',
+    };
     const imageUrls = [
       'https://example.com/image-1.jpg',
       'https://example.com/image-2.jpg',
@@ -221,7 +311,7 @@ describe('MessagesService', () => {
       internalNote: false,
     };
 
-    conversationModel.findById.mockResolvedValue(conversation);
+    conversationModel.findOne.mockResolvedValue(conversation);
     messageModel.create.mockResolvedValue(createdMessage);
     conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
     whatsappService.sendImage.mockResolvedValue(undefined);
@@ -242,14 +332,63 @@ describe('MessagesService', () => {
     );
     expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
       1,
+      expect.objectContaining({
+        whatsapp: expect.objectContaining({
+          accessToken: 'tenant-access-token',
+          phoneNumberId: 'phone-number-1',
+        }),
+      }),
       '5215551234567',
       'https://example.com/image-1.jpg',
     );
     expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
       2,
+      expect.objectContaining({
+        whatsapp: expect.objectContaining({
+          accessToken: 'tenant-access-token',
+          phoneNumberId: 'phone-number-1',
+        }),
+      }),
       '5215551234567',
       'https://example.com/image-2.jpg',
     );
     expect(result).toBe(createdMessage);
+  });
+
+  it('clears unread count when finding messages by conversation', async () => {
+    const conversation = { _id: 'conversation-id', waId: '5215551234567' };
+    const messages = [
+      {
+        _id: 'message-id',
+        conversationId: 'conversation-id',
+        from: MessageFrom.USER,
+        type: MessageType.TEXT,
+        content: 'hola',
+      },
+    ];
+    const sort = jest.fn().mockResolvedValue(messages);
+
+    conversationModel.findOne.mockResolvedValue(conversation);
+    messageModel.find.mockReturnValue({ sort });
+    conversationModel.updateOne.mockResolvedValue({ acknowledged: true });
+
+    const result = await service.findByConversation(
+      'conversation-id',
+      '67e8a7b7b9d2f3a1c4d5e6bb',
+    );
+
+    expect(conversationModel.updateOne).toHaveBeenCalledWith(
+      {
+        _id: 'conversation-id',
+        tenantId: expect.any(Object),
+      },
+      {
+        $set: {
+          lastReadAt: expect.any(Date),
+          unreadCount: 0,
+        },
+      },
+    );
+    expect(result).toBe(messages);
   });
 });

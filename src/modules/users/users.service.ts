@@ -6,7 +6,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'crypto';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { User } from './schemas/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
@@ -34,6 +34,7 @@ export class UsersService {
 
     const user = await this.userModel.create({
       name: payload.name.trim(),
+      tenantId: new Types.ObjectId(payload.tenantId),
       email,
       passwordHash: this.hashPassword(payload.password),
       role: payload.role,
@@ -46,19 +47,16 @@ export class UsersService {
       name: user.name,
       email: user.email,
       role: user.role,
+      tenantId: String(user.tenantId),
       active: user.active,
     };
   }
 
   async login(payload: LoginUserDto) {
-    console.log(3333333333333);
-
-    console.log(payload);
-
     const email = payload.email.trim().toLowerCase();
     const user = await this.userModel
       .findOne({ email, active: true })
-      .select('+passwordHash tokenVersion role');
+      .select('+passwordHash tokenVersion role tenantId');
     console.log(user);
 
     if (!user) {
@@ -76,7 +74,9 @@ export class UsersService {
 
     const jwtPayload: JwtUserPayload = {
       sub: String(user._id),
+      userId: String(user._id),
       role: user.role,
+      tenantId: String(user.tenantId),
       tokenVersion: user.tokenVersion || 0,
     };
 
@@ -124,6 +124,6 @@ export class UsersService {
   async findActiveUserAuthById(userId: string) {
     return this.userModel
       .findOne({ _id: userId, active: true })
-      .select('tokenVersion role active');
+      .select('tokenVersion role active tenantId');
   }
 }

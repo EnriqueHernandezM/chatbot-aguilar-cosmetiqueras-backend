@@ -12,7 +12,9 @@ import { WebhookModule } from './modules/webhook/webhook.module';
 import { FlowModule } from './modules/flow/flow.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { QuickResponsesModule } from './modules/quick-responses/quick-responses.module';
+import { TenantsModule } from './modules/tenants/tenants.module';
 import { JwtAuthGuard } from './common/auth/guards/jwt-auth.guard';
+import { RolesGuard } from './common/auth/guards/roles.guard';
 import { HealthController } from './health.controller';
 
 //import { ServeStaticModule } from '@nestjs/serve-static';
@@ -37,11 +39,16 @@ import { ConfigModule } from '@nestjs/config';
     FlowModule,
     NotificationsModule,
     QuickResponsesModule,
+    TenantsModule,
   ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
   controllers: [HealthController],

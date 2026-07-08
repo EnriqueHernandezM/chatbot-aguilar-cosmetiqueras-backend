@@ -61,7 +61,9 @@ export class JwtAuthGuard implements CanActivate {
 
     request.user = {
       sub: String(user._id),
+      userId: String(user._id),
       role: user.role,
+      tenantId: String(user.tenantId),
       tokenVersion: user.tokenVersion || 0,
     };
     request.accessToken = accessToken;

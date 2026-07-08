@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { getModelToken } from '@nestjs/mongoose';
 
 import { MessageFrom } from 'src/common/enums/message-from.enum';
 import { MessageType } from 'src/common/enums/message-type.enum';
@@ -12,6 +13,7 @@ import { StorageService } from '../storage/storage.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { WebhookService } from './webhook.service';
 import { notifyWaitingHumanNewMessage } from 'src/common/utils/telegram-alerts/telegram-alerts.util';
+import { Tenant } from '../tenants/schemas/tenant.schema';
 
 jest.mock('src/common/utils/telegram-alerts/telegram-alerts.util', () => ({
   notifyWaitingHumanNewMessage: jest.fn(),
@@ -51,6 +53,17 @@ describe('WebhookService', () => {
     uploadBuffer: jest.fn(),
   };
 
+  const tenantModel = {
+    findOne: jest.fn(),
+  };
+
+  const expectedTenant = expect.objectContaining({
+    whatsapp: expect.objectContaining({
+      accessToken: 'tenant-access-token',
+      phoneNumberId: 'phone-number-1',
+    }),
+  });
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -79,12 +92,24 @@ describe('WebhookService', () => {
           provide: StorageService,
           useValue: storageService,
         },
+        {
+          provide: getModelToken(Tenant.name),
+          useValue: tenantModel,
+        },
       ],
     }).compile();
 
     service = module.get<WebhookService>(WebhookService);
     jest.clearAllMocks();
-});
+    tenantModel.findOne.mockResolvedValue({
+      _id: 'tenant-1',
+      whatsapp: {
+        phoneNumberId: 'phone-number-1',
+        accessToken: 'tenant-access-token',
+        webhookVerifyToken: 'tenant-verify-token',
+      },
+    });
+  });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
@@ -111,6 +136,9 @@ describe('WebhookService', () => {
           changes: [
             {
               value: {
+                metadata: {
+                  phone_number_id: 'phone-number-1',
+                },
                 messages: [
                   {
                     id: 'wamid-1',
@@ -130,13 +158,22 @@ describe('WebhookService', () => {
 
     await service.processWebhook(payload);
 
+    expect(tenantModel.findOne).toHaveBeenCalledWith({
+      'whatsapp.phoneNumberId': 'phone-number-1',
+    });
+    expect(conversationsService.findOrCreateConversation).toHaveBeenCalledWith(
+      '5215551234567',
+      'tenant-1',
+    );
     expect(whatsappService.sendText).toHaveBeenNthCalledWith(
       1,
+      expectedTenant,
       '5215551234567',
       'Primer mensaje',
     );
     expect(whatsappService.sendText).toHaveBeenNthCalledWith(
       2,
+      expectedTenant,
       '5215551234567',
       'Segundo mensaje',
     );
@@ -148,7 +185,9 @@ describe('WebhookService', () => {
         content: 'Segundo mensaje',
       }),
     );
-    expect(notificationsService.sendIncomingMessageNotification).toHaveBeenCalledWith({
+    expect(
+      notificationsService.sendIncomingMessageNotification,
+    ).toHaveBeenCalledWith({
       conversationId: 'conversation-1',
       phone: '5215551234567',
       preview: '1',
@@ -187,6 +226,9 @@ describe('WebhookService', () => {
           changes: [
             {
               value: {
+                metadata: {
+                  phone_number_id: 'phone-number-1',
+                },
                 messages: [
                   {
                     id: 'wamid-2',
@@ -208,30 +250,35 @@ describe('WebhookService', () => {
 
     expect(whatsappService.sendText).toHaveBeenNthCalledWith(
       1,
+      expectedTenant,
       '5215551234567',
       'Primer mensaje',
     );
     expect(whatsappService.sendText).toHaveBeenNthCalledWith(
       2,
+      expectedTenant,
       '5215551234567',
-      'Aquí puedes ver todos los colores y modelos disponibles 👇',
+      'Tenemos más colores y modelos disponibles aquí 👇',
     );
     expect(whatsappService.sendText).toHaveBeenNthCalledWith(
       3,
+      expectedTenant,
       '5215551234567',
       'https://example.com',
       true,
     );
     expect(whatsappService.sendImage).toHaveBeenCalledWith(
+      expectedTenant,
       '5215551234567',
       'https://example.com/models.jpg',
     );
     expect(messagesService.createMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         conversationId: 'conversation-1',
+        tenantId: 'tenant-1',
         from: MessageFrom.BOT,
         type: MessageType.TEXT,
-        content: 'Aquí puedes ver todos los colores y modelos disponibles 👇',
+        content: 'Tenemos más colores y modelos disponibles aquí 👇',
       }),
     );
     expect(messagesService.createMessage).toHaveBeenCalledWith(
@@ -247,9 +294,7 @@ describe('WebhookService', () => {
     process.env.MODELS_IMAGE_NATIONAL = previousModelsImage;
   });
 
-  it(
-    'sends each configured models image when the env value is a string array',
-    async () => {
+  it('sends each configured models image when the env value is a string array', async () => {
     const previousModelsImage = process.env.MODELS_IMAGE_NATIONAL;
 
     process.env.MODELS_IMAGE_NATIONAL = JSON.stringify([
@@ -277,6 +322,9 @@ describe('WebhookService', () => {
           changes: [
             {
               value: {
+                metadata: {
+                  phone_number_id: 'phone-number-1',
+                },
                 messages: [
                   {
                     id: 'wamid-4',
@@ -298,24 +346,25 @@ describe('WebhookService', () => {
 
     expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
       1,
+      expectedTenant,
       '5215551234567',
       'https://example.com/models-1.jpg',
     );
     expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
       2,
+      expectedTenant,
       '5215551234567',
       'https://example.com/models-2.jpg',
     );
     expect(whatsappService.sendImage).toHaveBeenNthCalledWith(
       3,
+      expectedTenant,
       '5215551234567',
       'https://example.com/models-3.jpg',
     );
 
     process.env.MODELS_IMAGE_NATIONAL = previousModelsImage;
-    },
-    10000,
-  );
+  }, 10000);
 
   it('alerts agents when a new message arrives in a waiting_human conversation', async () => {
     messagesService.messageExists.mockResolvedValue(false);
@@ -336,6 +385,9 @@ describe('WebhookService', () => {
           changes: [
             {
               value: {
+                metadata: {
+                  phone_number_id: 'phone-number-1',
+                },
                 messages: [
                   {
                     id: 'wamid-3',
@@ -360,7 +412,9 @@ describe('WebhookService', () => {
       'conversation-9',
       'Necesito seguimiento',
     );
-    expect(notificationsService.sendIncomingMessageNotification).toHaveBeenCalledWith({
+    expect(
+      notificationsService.sendIncomingMessageNotification,
+    ).toHaveBeenCalledWith({
       conversationId: 'conversation-9',
       phone: '5215551234567',
       preview: 'Necesito seguimiento',
@@ -400,6 +454,9 @@ describe('WebhookService', () => {
           changes: [
             {
               value: {
+                metadata: {
+                  phone_number_id: 'phone-number-1',
+                },
                 messages: [
                   {
                     id: 'wamid-image-1',
@@ -420,6 +477,7 @@ describe('WebhookService', () => {
     await service.processWebhook(payload);
 
     expect(messagesService.createMessage).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
       conversationId: 'conversation-15',
       from: MessageFrom.USER,
       type: MessageType.IMAGE,
@@ -429,15 +487,81 @@ describe('WebhookService', () => {
     expect(flowService.processMessage).not.toHaveBeenCalled();
     expect(whatsappService.sendText).not.toHaveBeenCalled();
     expect(whatsappService.getMediaMetadata).toHaveBeenCalledWith(
+      expectedTenant,
       'meta-image-1',
     );
     expect(whatsappService.downloadMedia).toHaveBeenCalledWith(
+      expectedTenant,
       'https://lookaside.fbsbx.com/whatsapp-business/media/image-1',
     );
     expect(storageService.uploadBuffer).toHaveBeenCalledWith(
       expect.objectContaining({
         buffer: Buffer.from('image-binary'),
         contentType: 'image/jpeg',
+      }),
+    );
+  });
+
+  it('does not store WhatsApp lookaside URLs when image upload is unavailable', async () => {
+    messagesService.messageExists.mockResolvedValue(false);
+    whatsappService.getMediaMetadata.mockResolvedValue({
+      id: 'meta-image-4',
+      url: 'https://lookaside.fbsbx.com/whatsapp-business/media/image-4',
+      mime_type: 'image/jpeg',
+    });
+    whatsappService.downloadMedia.mockResolvedValue({
+      buffer: Buffer.from('image-binary'),
+      contentType: 'image/jpeg',
+    });
+    storageService.uploadBuffer.mockResolvedValue(null);
+    conversationsService.findOrCreateConversation.mockResolvedValue({
+      _id: 'conversation-18',
+      currentState: ConversationState.MENU,
+      status: ConversationStatus.ACTIVE,
+    });
+    conversationsService.acquireLock.mockResolvedValue({
+      _id: 'conversation-18',
+    });
+
+    const payload = {
+      entry: [
+        {
+          changes: [
+            {
+              value: {
+                metadata: {
+                  phone_number_id: 'phone-number-1',
+                },
+                messages: [
+                  {
+                    id: 'wamid-image-4',
+                    from: '5215551234567',
+                    type: 'image',
+                    image: {
+                      id: 'meta-image-4',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    await service.processWebhook(payload);
+
+    expect(messagesService.createMessage).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      conversationId: 'conversation-18',
+      from: MessageFrom.USER,
+      type: MessageType.IMAGE,
+      content: 'meta-image-4',
+      waMessageId: 'wamid-image-4',
+    });
+    expect(messagesService.createMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'https://lookaside.fbsbx.com/whatsapp-business/media/image-4',
       }),
     );
   });
@@ -459,6 +583,9 @@ describe('WebhookService', () => {
           changes: [
             {
               value: {
+                metadata: {
+                  phone_number_id: 'phone-number-1',
+                },
                 messages: [
                   {
                     id: 'wamid-image-2',
@@ -488,6 +615,7 @@ describe('WebhookService', () => {
 
     expect(messagesService.createMessage).toHaveBeenCalledTimes(1);
     expect(messagesService.createMessage).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
       conversationId: 'conversation-16',
       from: MessageFrom.BOT,
       type: MessageType.TEXT,
@@ -495,6 +623,7 @@ describe('WebhookService', () => {
         'Por favor envia solo una imagen por mensaje para poder procesarla correctamente.',
     });
     expect(whatsappService.sendText).toHaveBeenCalledWith(
+      expectedTenant,
       '5215551234567',
       'Por favor envia solo una imagen por mensaje para poder procesarla correctamente.',
     );
@@ -508,6 +637,9 @@ describe('WebhookService', () => {
           changes: [
             {
               value: {
+                metadata: {
+                  phone_number_id: 'phone-number-1',
+                },
                 messages: [
                   {
                     id: 'wamid-location-1',
@@ -553,6 +685,9 @@ describe('WebhookService', () => {
           changes: [
             {
               value: {
+                metadata: {
+                  phone_number_id: 'phone-number-1',
+                },
                 messages: [
                   {
                     id: 'wamid-interactive-1',

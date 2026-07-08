@@ -13,13 +13,15 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { UsersService } from './users.service';
 import { Public } from 'src/common/auth/public.decorator';
+import { Roles } from 'src/common/auth/roles.decorator';
+import { UserRole } from 'src/common/enums/user-role.enum';
 
 @ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Public()
+  @Roles(UserRole.SUPER_ADMIN)
   @Post('register')
   async register(@Body() payload: CreateUserDto) {
     return this.usersService.createUser(payload);

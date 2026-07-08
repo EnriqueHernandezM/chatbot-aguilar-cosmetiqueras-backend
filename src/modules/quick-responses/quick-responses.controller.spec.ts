@@ -27,26 +27,46 @@ describe('QuickResponsesController', () => {
   });
 
   it('creates a quick response', async () => {
-    await controller.create({
-      category: 'ATENCION',
-      title: 'Saludo inicial',
-      content: 'Hola, con gusto te atiendo.',
-      status: true,
-      order: 1,
-    });
+    const request = {
+      user: {
+        tenantId: '67e8a7b7b9d2f3a1c4d5e6bb',
+      },
+    } as any;
 
-    expect(quickResponsesService.create).toHaveBeenCalledWith({
-      category: 'ATENCION',
-      title: 'Saludo inicial',
-      content: 'Hola, con gusto te atiendo.',
-      status: true,
-      order: 1,
-    });
+    await controller.create(
+      {
+        category: 'ATENCION',
+        title: 'Saludo inicial',
+        content: 'Hola, con gusto te atiendo.',
+        status: true,
+        order: 1,
+      },
+      request,
+    );
+
+    expect(quickResponsesService.create).toHaveBeenCalledWith(
+      {
+        category: 'ATENCION',
+        title: 'Saludo inicial',
+        content: 'Hola, con gusto te atiendo.',
+        status: true,
+        order: 1,
+      },
+      '67e8a7b7b9d2f3a1c4d5e6bb',
+    );
   });
 
   it('lists available quick responses', async () => {
-    await controller.findAvailable();
+    const request = {
+      user: {
+        tenantId: '67e8a7b7b9d2f3a1c4d5e6bb',
+      },
+    } as any;
 
-    expect(quickResponsesService.findAvailable).toHaveBeenCalled();
+    await controller.findAvailable(request);
+
+    expect(quickResponsesService.findAvailable).toHaveBeenCalledWith(
+      '67e8a7b7b9d2f3a1c4d5e6bb',
+    );
   });
 });

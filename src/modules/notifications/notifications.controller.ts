@@ -17,7 +17,11 @@ export class NotificationsController {
     @Req() req: AuthenticatedRequest,
     @Body() payload: SaveFcmTokenDto,
   ) {
-    return this.notificationsService.saveFcmToken(req.user.sub, payload);
+    return this.notificationsService.saveFcmToken(
+      req.user.sub,
+      req.user.tenantId,
+      payload,
+    );
   }
 
   @Delete('fcm-token')
@@ -27,6 +31,7 @@ export class NotificationsController {
   ) {
     return this.notificationsService.deleteFcmToken(
       req.user.sub,
+      req.user.tenantId,
       payload.token,
     );
   }
@@ -38,6 +43,7 @@ export class NotificationsController {
   ) {
     return this.notificationsService.sendTestNotification(
       req.user.sub,
+      req.user.tenantId,
       payload.token,
     );
   }

@@ -29,7 +29,12 @@ describe('NotificationsController', () => {
 
   it('stores an fcm token for the logged-in user', async () => {
     await controller.saveFcmToken(
-      { user: { sub: 'user-1' } } as any,
+      {
+        user: {
+          sub: 'user-1',
+          tenantId: '67e8a7b7b9d2f3a1c4d5e6bb',
+        },
+      } as any,
       {
         token: 'fcm-token-123456',
         platform: 'web',
@@ -38,11 +43,15 @@ describe('NotificationsController', () => {
       },
     );
 
-    expect(notificationsService.saveFcmToken).toHaveBeenCalledWith('user-1', {
-      token: 'fcm-token-123456',
-      platform: 'web',
-      deviceName: 'Chrome Android',
-      userAgent: 'UA',
-    });
+    expect(notificationsService.saveFcmToken).toHaveBeenCalledWith(
+      'user-1',
+      '67e8a7b7b9d2f3a1c4d5e6bb',
+      {
+        token: 'fcm-token-123456',
+        platform: 'web',
+        deviceName: 'Chrome Android',
+        userAgent: 'UA',
+      },
+    );
   });
 });
