@@ -11,7 +11,13 @@ export class Tenant extends Document {
   @Prop({ required: true, trim: true })
   name: string;
 
-  @Prop({ required: true, unique: true, index: true, lowercase: true, trim: true })
+  @Prop({
+    required: true,
+    unique: true,
+    index: true,
+    lowercase: true,
+    trim: true,
+  })
   slug: string;
 
   @Prop({ type: Boolean, default: true })
