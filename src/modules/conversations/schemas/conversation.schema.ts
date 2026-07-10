@@ -18,6 +18,9 @@ export class Conversation extends Document {
   @Prop({ required: true })
   waId: string;
 
+  @Prop({ type: String, trim: true, default: null })
+  nickname: string | null;
+
   @Prop({
     type: String,
     enum: ConversationState,

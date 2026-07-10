@@ -442,6 +442,31 @@ export class ConversationsService {
     return conversation;
   }
 
+  async updateNickname(
+    conversationId: string,
+    nickname: string | null,
+    tenantId: string,
+  ) {
+    const normalizedNickname =
+      nickname === null ? null : nickname?.trim() ?? null;
+
+    const conversation = await this.conversationModel.findOneAndUpdate(
+      { _id: conversationId, tenantId: new Types.ObjectId(tenantId) },
+      {
+        $set: {
+          nickname: normalizedNickname,
+        },
+      },
+      { new: true },
+    );
+
+    if (!conversation) {
+      throw new NotFoundException('Conversation not found');
+    }
+
+    return conversation;
+  }
+
   async deleteMany(ids: string[], tenantId: string) {
     const result = await this.conversationModel.deleteMany({
       _id: { $in: ids },

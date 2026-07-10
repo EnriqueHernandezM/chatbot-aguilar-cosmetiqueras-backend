@@ -15,6 +15,7 @@ import { AssignConversationDto } from './dto/assign-conversation.dto';
 import { DeleteConversationsDto } from './dto/delete-conversations.dto';
 import { FindConversationsDto } from './dto/find-conversations.dto';
 import { GetConversationUpdatesDto } from './dto/get-conversation-updates.dto';
+import { UpdateConversationNicknameDto } from './dto/update-conversation-nickname.dto';
 import { UpdateConversationSaleDto } from './dto/update-conversation-sale.dto';
 import { UpdateConversationStatusDto } from './dto/update-conversation-status.dto';
 import { ConversationsService } from './conversations.service';
@@ -74,6 +75,19 @@ export class ConversationsController {
     return this.conversationsService.updateStatus(
       id,
       payload.status,
+      req.user.tenantId,
+    );
+  }
+
+  @Patch(':id/nickname')
+  async updateNickname(
+    @Param('id') id: string,
+    @Body() payload: UpdateConversationNicknameDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.conversationsService.updateNickname(
+      id,
+      payload.nickname,
       req.user.tenantId,
     );
   }
