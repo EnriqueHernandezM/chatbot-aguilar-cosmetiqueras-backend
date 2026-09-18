@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "deploy:prod": "fly deploy",
+    "deploy:prod": "flyctl deploy",
     "deploy:dev": "fly deploy -c fly.dev.toml",
     "build": "nest build",
     "start": "node dist/main.js",

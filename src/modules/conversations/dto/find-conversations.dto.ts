@@ -1,4 +1,10 @@
-import { IsEnum, IsMongoId, IsOptional } from 'class-validator';
+import {
+  IsBooleanString,
+  IsEnum,
+  IsMongoId,
+  IsOptional,
+  Matches,
+} from 'class-validator';
 import { ConversationStatus } from 'src/common/enums/conversation-status.enum';
 
 export class FindConversationsDto {
@@ -9,4 +15,20 @@ export class FindConversationsDto {
   @IsOptional()
   @IsMongoId()
   assignedTo?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  isClosedSale?: string;
+
+  @IsOptional()
+  @IsBooleanString()
+  isPotentialSale?: string;
+
+  @IsOptional()
+  @Matches(/^[1-9]\d*$/)
+  page?: string;
+
+  @IsOptional()
+  @Matches(/^[1-9]\d*$/)
+  limit?: string;
 }

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { Model, PipelineStage, Types } from 'mongoose';
 
 import { Conversation } from './schemas/conversation.schema';
 import { ConversationState } from 'src/common/enums/conversation-state.enum';
@@ -129,8 +129,9 @@ export class ConversationsService {
   }
 
   async findAll(filters: FindConversationsFilters, tenantId: string) {
-    const query: Record<string, string | Types.ObjectId> = {};
+    const query: Record<string, unknown> = {};
     const tenantObjectId = new Types.ObjectId(tenantId);
+    const pagination = this.resolvePagination(filters);
 
     query.tenantId = tenantObjectId;
 
@@ -142,10 +143,25 @@ export class ConversationsService {
       query.assignedTo = new Types.ObjectId(filters.assignedTo);
     }
 
-    const conversations = await this.conversationModel.aggregate([
+    if (filters.isClosedSale !== undefined) {
+      query.isClosedSale = this.parseBooleanFilter(filters.isClosedSale);
+    }
+
+    if (filters.isPotentialSale !== undefined) {
+      query.isPotentialSale = this.parseBooleanFilter(filters.isPotentialSale);
+    }
+
+    const basePipeline: PipelineStage[] = [
       {
         $match: query,
       },
+      {
+        $sort: {
+          lastMessageAt: -1,
+          updatedAt: -1,
+        },
+      },
+      ...pagination.pipeline,
       {
         $lookup: {
           from: this.userModel.collection.name,
@@ -212,14 +228,32 @@ export class ConversationsService {
           as: 'lastMessageData',
         },
       },
-      {
-        $sort: {
-          lastMessageAt: -1,
-          updatedAt: -1,
-        },
-      },
-    ]);
+    ];
 
+    const conversations = await this.conversationModel.aggregate(basePipeline);
+    const data = this.mapConversations(conversations);
+
+    if (!pagination.enabled) {
+      return data;
+    }
+
+    const total = await this.conversationModel.countDocuments(query);
+    const totalPages = Math.ceil(total / pagination.limit);
+
+    return {
+      data,
+      pagination: {
+        page: pagination.page,
+        limit: pagination.limit,
+        total,
+        totalPages,
+        hasNextPage: pagination.page < totalPages,
+        hasPreviousPage: pagination.page > 1,
+      },
+    };
+  }
+
+  private mapConversations(conversations: any[]) {
     return conversations.map((conversation) => {
       const { lastMessageData, ...conversationData } = conversation;
 
@@ -228,6 +262,30 @@ export class ConversationsService {
         lastMessage: this.mapLastMessage(lastMessageData?.[0]),
       };
     });
+  }
+
+  private resolvePagination(filters: FindConversationsFilters) {
+    const enabled = filters.page !== undefined || filters.limit !== undefined;
+    const maxLimit = 100;
+    const page = Math.max(Number(filters.page ?? 1), 1);
+    const requestedLimit = Math.max(Number(filters.limit ?? 20), 1);
+    const limit = Math.min(requestedLimit, maxLimit);
+    const skip = (page - 1) * limit;
+
+    const pipeline: PipelineStage[] = enabled
+      ? [{ $skip: skip }, { $limit: limit }]
+      : [];
+
+    return {
+      enabled,
+      page,
+      limit,
+      pipeline,
+    };
+  }
+
+  private parseBooleanFilter(value: string | boolean) {
+    return value === true || value === 'true';
   }
 
   async getUpdates(since: string, tenantId: string) {

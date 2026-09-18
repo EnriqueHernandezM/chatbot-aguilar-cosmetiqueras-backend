@@ -20,6 +20,7 @@ describe('ConversationsService', () => {
     findOneAndUpdate: jest.fn(),
     find: jest.fn(),
     aggregate: jest.fn(),
+    countDocuments: jest.fn(),
   };
   const userSelect = jest.fn();
   const userModel = {
@@ -230,6 +231,71 @@ describe('ConversationsService', () => {
     const result = await service.findAll({}, '67e8a7b7b9d2f3a1c4d5e6bb');
 
     expect(result[0].lastMessage).toBeNull();
+  });
+
+  it('filters conversations by sale flags', async () => {
+    conversationModel.aggregate.mockResolvedValue([]);
+
+    await service.findAll(
+      {
+        isClosedSale: 'false',
+        isPotentialSale: 'true',
+      },
+      '67e8a7b7b9d2f3a1c4d5e6bb',
+    );
+
+    expect(conversationModel.aggregate).toHaveBeenCalledWith(
+      expect.arrayContaining([
+        {
+          $match: {
+            tenantId: expect.any(Object),
+            isClosedSale: false,
+            isPotentialSale: true,
+          },
+        },
+      ]),
+    );
+  });
+
+  it('returns paginated conversations when page or limit is provided', async () => {
+    conversationModel.aggregate.mockResolvedValue([
+      {
+        _id: 'conversation-5',
+        lastMessageData: [],
+      },
+    ]);
+    conversationModel.countDocuments.mockResolvedValue(45);
+
+    const result = await service.findAll(
+      {
+        page: '2',
+        limit: '20',
+      },
+      '67e8a7b7b9d2f3a1c4d5e6bb',
+    );
+
+    expect(conversationModel.aggregate).toHaveBeenCalledWith(
+      expect.arrayContaining([{ $skip: 20 }, { $limit: 20 }]),
+    );
+    expect(conversationModel.countDocuments).toHaveBeenCalledWith({
+      tenantId: expect.any(Object),
+    });
+    expect(result).toEqual({
+      data: [
+        {
+          _id: 'conversation-5',
+          lastMessage: null,
+        },
+      ],
+      pagination: {
+        page: 2,
+        limit: 20,
+        total: 45,
+        totalPages: 3,
+        hasNextPage: true,
+        hasPreviousPage: true,
+      },
+    });
   });
 
   it('keeps the last message preview when internalNote is missing', async () => {
