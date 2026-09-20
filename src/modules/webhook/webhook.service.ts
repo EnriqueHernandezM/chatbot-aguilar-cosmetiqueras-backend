@@ -5,7 +5,7 @@ import { processIncomingMessage } from '../../common/utils/message-processor.uti
 import { ConversationsService } from '../conversations/conversations.service';
 import { MessagesService } from '../messages/messages.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
-import { ConversationFlowService } from '../flow/conversation-flow.service';
+import { TenantFlowRouterService } from '../flow/tenant-flow-router.service';
 
 import { MessageFrom } from '../../common/enums/message-from.enum';
 import { MessageType } from '../../common/enums/message-type.enum';
@@ -26,7 +26,7 @@ export class WebhookService {
     private readonly whatsappService: WhatsAppService,
     private readonly conversationsService: ConversationsService,
     private readonly messagesService: MessagesService,
-    private readonly flowService: ConversationFlowService,
+    private readonly flowRouter: TenantFlowRouterService,
     private readonly notificationsService: NotificationsService,
     private readonly storageService: StorageService,
     @InjectModel(Tenant.name)
@@ -200,7 +200,8 @@ Podrias escribir tu mensaje?`;
       }
 
       // FLOW ENGINE
-      const flowResponse = await this.flowService.processMessage(
+      const flowResponse = await this.flowRouter.processMessage(
+        tenant,
         conversation,
         text,
         waId,

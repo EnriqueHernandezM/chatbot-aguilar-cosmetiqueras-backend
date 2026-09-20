@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "deploy:prod": "flyctl deploy",
-    "deploy:dev": "fly deploy -c fly.dev.toml",
+    "deploy:dev": "flyctl deploy -c fly.dev.toml",
     "build": "nest build",
     "start": "node dist/main.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

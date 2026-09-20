@@ -6,7 +6,7 @@ import { MessageType } from 'src/common/enums/message-type.enum';
 import { ConversationState } from 'src/common/enums/conversation-state.enum';
 import { ConversationStatus } from 'src/common/enums/conversation-status.enum';
 import { ConversationsService } from '../conversations/conversations.service';
-import { ConversationFlowService } from '../flow/conversation-flow.service';
+import { TenantFlowRouterService } from '../flow/tenant-flow-router.service';
 import { MessagesService } from '../messages/messages.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StorageService } from '../storage/storage.service';
@@ -14,6 +14,7 @@ import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { WebhookService } from './webhook.service';
 import { notifyWaitingHumanNewMessage } from 'src/common/utils/telegram-alerts/telegram-alerts.util';
 import { Tenant } from '../tenants/schemas/tenant.schema';
+import { it } from 'node:test';
 
 jest.mock('src/common/utils/telegram-alerts/telegram-alerts.util', () => ({
   notifyWaitingHumanNewMessage: jest.fn(),
@@ -81,7 +82,7 @@ describe('WebhookService', () => {
           useValue: messagesService,
         },
         {
-          provide: ConversationFlowService,
+          provide: TenantFlowRouterService,
           useValue: flowService,
         },
         {
@@ -720,9 +721,17 @@ describe('WebhookService', () => {
       }),
     );
     expect(flowService.processMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        whatsapp: expect.objectContaining({
+          phoneNumberId: 'phone-number-1',
+        }),
+      }),
       expect.objectContaining({ _id: 'conversation-17' }),
       'Ver modelos',
       '5215551234567',
     );
   });
 });
+function expect(releaseLock: any) {
+  throw new Error('Function not implemented.');
+}
