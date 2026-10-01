@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { Conversation } from '../../conversations/schemas/conversation.schema';
 import {
   FlowMessageContext,
+  FlowResponseConfig,
   FlowStepHandler,
   MenuFlowStep,
 } from '../interfaces/flow-config.interface';
@@ -13,12 +14,16 @@ import { resolveFlowResponse } from './flow-message.util';
 export class MenuHandler implements FlowStepHandler<MenuFlowStep> {
   readonly type = 'menu' as const;
 
-  handle(step: MenuFlowStep, context: FlowMessageContext): FlowResponse {
+  handle(step: MenuFlowStep, context: FlowMessageContext): FlowResponse | null {
     const input = context.message.trim();
     const option = step.options[input];
 
+    if (option?.reply) {
+      return resolveFlowResponse(option as FlowResponseConfig, context);
+    }
+
     if (option) {
-      return resolveFlowResponse(option, context);
+      return null;
     }
 
     if (step.initialFallback && this.isInitialMenuInteraction(context.conversation)) {

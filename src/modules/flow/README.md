@@ -16,7 +16,7 @@ La ruta activa es:
 - `tenant-flow-router.service.ts`: selecciona la config segun `tenant.slug`.
 - `flow-router.service.ts`: orquesta el flujo segun `initialState`, `steps` y `ConversationState`.
 - `flows/*.flow.ts`: configuraciones por tenant.
-- `flows/current-flow.factory.ts`: factory para crear el flujo actual como base.
+- `flows/*.flow.ts`: cada tenant tiene su config completa y editable.
 - `handlers/*.handler.ts`: comportamientos reutilizables.
 - `interfaces/flow-config.interface.ts`: tipos de configuracion.
 
@@ -60,15 +60,15 @@ Archivo:
 src/modules/flow/flows/otro-tenan.flow.ts
 ```
 
-Ese archivo exporta:
+Ese archivo exporta una config completa:
 
 ```ts
-export const otroTenanFlowConfig = createCurrentFlowConfig({
+export const otroTenanFlowConfig: FlowConfig = {
   initialState: ConversationState.SHOW_MODELS,
   steps: {
     ...
   },
-});
+};
 ```
 
 Para cambiar el estado inicial:
@@ -106,20 +106,21 @@ export enum TenantSlug {
 }
 ```
 
-2. Crea un archivo en `flows/`:
+2. Crea un archivo en `flows/` copiando una config existente:
 
 ```txt
 src/modules/flow/flows/nuevo-tenant.flow.ts
 ```
 
-Ejemplo base:
+Ejemplo minimo:
 
 ```ts
 import { ConversationState } from '../../../common/enums/conversation-state.enum';
-import { createCurrentFlowConfig } from './current-flow.factory';
+import { FlowConfig } from '../interfaces/flow-config.interface';
 
-export const nuevoTenantFlowConfig = createCurrentFlowConfig({
+export const nuevoTenantFlowConfig: FlowConfig = {
   initialState: ConversationState.MENU,
+  fallbackState: ConversationState.MENU,
   steps: {
     [ConversationState.MENU]: {
       state: ConversationState.MENU,
@@ -130,7 +131,7 @@ export const nuevoTenantFlowConfig = createCurrentFlowConfig({
       },
     },
   },
-});
+};
 ```
 
 3. Registra la config en `flows/index.ts`:

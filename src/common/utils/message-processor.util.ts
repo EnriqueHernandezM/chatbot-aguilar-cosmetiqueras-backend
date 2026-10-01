@@ -47,9 +47,7 @@ export function processIncomingMessage(message: any): ProcessedMessage {
       type: MessageType.IMAGE,
       text: message.image.caption?.trim(),
       content:
-        message.image.id?.trim() ||
-        message.image.caption?.trim() ||
-        '[image]',
+        message.image.id?.trim() || message.image.caption?.trim() || '[image]',
       imageId: message.image.id?.trim(),
       isSupported: true,
     };

@@ -10,6 +10,7 @@ import {
   MenuHandler,
   OpenQuestionHandler,
 } from './handlers';
+import { IntentDetectorService } from './intent-detector.service';
 import { TenantFlowRouterService } from './tenant-flow-router.service';
 
 @Module({
@@ -22,6 +23,7 @@ import { TenantFlowRouterService } from './tenant-flow-router.service';
     CaptureQuoteDataHandler,
     OpenQuestionHandler,
     HumanHandoffHandler,
+    IntentDetectorService,
     TenantFlowRouterService,
   ],
   exports: [ConversationFlowService, TenantFlowRouterService],

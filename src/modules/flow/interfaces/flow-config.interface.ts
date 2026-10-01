@@ -25,14 +25,21 @@ export interface FlowResponseConfig {
   nextState?: ConversationState;
 }
 
+export interface FlowTransitionConfig {
+  reply?: FlowMessage;
+  additionalReplies?: FlowMessage[];
+  nextState?: ConversationState;
+}
+
 export interface FlowStepBase {
   state: ConversationState;
   type: FlowStepType;
+  entryResponse?: FlowResponseConfig;
 }
 
 export interface MenuFlowStep extends FlowStepBase {
   type: 'menu';
-  options: Record<string, FlowResponseConfig>;
+  options: Record<string, FlowTransitionConfig>;
   initialFallback?: FlowResponseConfig;
   fallback: FlowResponseConfig;
 }
@@ -64,9 +71,21 @@ export type FlowStepConfig =
   | OpenQuestionFlowStep
   | HumanHandoffFlowStep;
 
+export interface IntentDefinition {
+  intent: string;
+  keywords: string[];
+}
+
+export interface InitialIntentRoute {
+  intent: string;
+  targetState: ConversationState;
+}
+
 export interface FlowConfig {
   initialState: ConversationState;
   fallbackState: ConversationState;
+  intents?: IntentDefinition[];
+  initialIntentRoutes?: InitialIntentRoute[];
   steps: Partial<Record<ConversationState, FlowStepConfig>>;
 }
 
